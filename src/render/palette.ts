@@ -12,14 +12,17 @@ export const TERRAIN_COLORS: Record<TerrainType, number> = {
 };
 
 /**
- * Photo textures mapped onto each terrain type. River and lake share one
- * water photo — tinted apart by the TERRAIN_COLORS blend wash in
- * GameScene, same as every other terrain-to-terrain seam.
+ * Photo textures mapped onto each terrain type. Lake still uses the
+ * cropped/seamless-tiled water+bank photos (see docs/river-textures.md) —
+ * those remain a good fit for a small, roughly circular body of water
+ * that's tiled per-tile.
  *
- * river/riverside are cropped and processed (seamless-tiled, see
- * docs/river-textures.md) from the user's own AI-generated reference
- * image rather than the general clandia texture library — a closer match
- * to the stacked-stone-bank, bright turquoise-water look they wanted.
+ * The main river is handled differently (see GameScene's drawRiverBackdrop):
+ * the user asked for their reference image to be used whole, as one single
+ * static backdrop, not cropped/tiled — so 'river' and 'riverside' tiles
+ * are skipped in the per-tile stamping loop entirely. TERRAIN_TEXTURE_KEY
+ * still needs entries for them because drawLakeTile reuses the same two
+ * texture keys as its water/bank stamps.
  */
 export const TERRAIN_TEXTURE_KEY: Record<TerrainType, string> = {
   river: "tex-river-water",
@@ -34,11 +37,19 @@ export const TERRAIN_TEXTURE_KEY: Record<TerrainType, string> = {
 /** The extracted bridge photo — a discrete sprite (see drawBuildingBadge's covered_bridge case), not a repeating fill. */
 export const BRIDGE_TEXTURE_KEY = "tex-river-bridge";
 
+/**
+ * The user's full AI-generated reference image, used unmodified (not
+ * cropped, not tiled) as a single backdrop stretched over the river's
+ * true path — see GameScene's drawRiverBackdrop.
+ */
+export const RIVER_BACKDROP_TEXTURE_KEY = "tex-river-backdrop";
+
 /** Files served from /public/textures. */
 export const TEXTURE_FILES: Record<string, string> = {
   "tex-river-water": "/textures/river_water.jpg",
   "tex-river-bank": "/textures/river_bank.jpg",
   [BRIDGE_TEXTURE_KEY]: "/textures/river_bridge.jpg",
+  [RIVER_BACKDROP_TEXTURE_KEY]: "/textures/river_valley.jpg",
   "tex-grass": "/textures/grass.jpg",
   "tex-straw": "/textures/straw.jpg",
   "tex-stone": "/textures/stone.jpg",

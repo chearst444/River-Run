@@ -101,20 +101,23 @@ flags balancing as a later pass once the systems are all in place, which they no
   - The water itself gets a depth-shading overlay — a darker wandering band, a
     lighter shimmer band, and scattered bright glints — clipped to the same ribbon
     mask as the water photos, so it no longer reads as one flat color.
-- **River textures sourced from a user reference image** — `river_water.jpg`,
-  `river_bank.jpg`, and `river_bridge.jpg` are cropped and processed from a 2400×2400
-  AI-generated reference image the user provided, replacing the general-purpose
-  clandia water/pebble textures for the river/riverside specifically (other terrain
-  types are unaffected). Water and bank were cropped to clean ~75–115px source
-  squares, made seamlessly tileable (offset-to-center + localized seam blend), and
-  upscaled to 256×256; the bridge was cropped tighter around just the structure and
-  used as a discrete sprite (`covered_bridge`'s special case in
-  `drawBuildingBadge`/`drawBridgeSprite`) rather than a repeating fill, since a
-  bridge isn't a tileable pattern. **Known limitation:** the bank source crop's
-  seam is faint but not perfect (large, individually-recognizable rock shapes are
-  inherently harder to make seamless than fine-grained noise like the water); the
-  engine's existing per-tile flip/rotation variety substantially masks this in
-  actual play, but it's not a pixel-perfect tile.
+- **The main river is one single, unmodified reference image** — after trying a
+  cropped/seamlessly-tiled version of the user's AI-generated river photo, the
+  user asked for something simpler and more literal: use their reference image
+  whole, "as is," as a single backdrop — not cropped into pieces, not tiled or
+  repeated anywhere. `river_valley.jpg` (the full reference image, resized down
+  from 2400×2400 to 1600×1600 for file size only — no cropping) is placed as one
+  `Image` game object, scaled to cover the bounding box of the river's true
+  curving path (`drawRiverBackdrop` in `GameScene`) and clipped to that same
+  path (river width + riverside band, jittered edges and all) so it doesn't spill
+  onto the surrounding grass/hillside photos. The image's own content — where the
+  bridge, rocks, and current happen to fall — isn't aligned to any particular
+  tile; it's placed by the river's geometry only, exactly as asked ("the user
+  doesn't have to see where the sections are"). `river_water.jpg`/`river_bank.jpg`
+  (the earlier cropped/tiled textures) are kept and still used for the separate
+  inland **lake**, which is unaffected by this change. The extracted
+  `river_bridge.jpg` sprite is also unaffected — it's a discrete building icon for
+  player-built covered bridges, not a terrain fill.
 
 ## Tech Stack
 

@@ -12,12 +12,13 @@ import {
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
-import { isWaterTerrain, riverCenterX, RIVER_HALF_WIDTH } from "../sim/terrain";
+import { isWaterTerrain, riverCenterX, RIVER_HALF_WIDTH, RIVERSIDE_BAND_WIDTH } from "../sim/terrain";
 import {
   TERRAIN_COLORS,
   TERRAIN_TEXTURE_KEY,
   TEXTURE_FILES,
   BRIDGE_TEXTURE_KEY,
+  RIVER_BACKDROP_TEXTURE_KEY,
   ZONE_COLORS,
   CROP_COLORS,
   GRID_LINE_COLOR,
@@ -52,16 +53,15 @@ const LAKE_CORNER_ROUND_STRONG = 0.46; // fraction of TILE_SIZE
 const LAKE_CORNER_ROUND_MILD = 0.22;
 
 // How finely the river's true sine centerline is sampled when building its
-// ribbon shape — many samples per tile, so the curve reads as genuinely
+// clip shape — many samples per tile, so the curve reads as genuinely
 // smooth rather than a coarse polygon.
 const RIVER_RIBBON_SAMPLES_PER_TILE = 8;
 
-// The ribbon's left/right edges are each perturbed by a small amount of
+// The clip shape's left/right edges are each perturbed by a small amount of
 // smooth, deterministic "noise" (band-limited: a few sine octaves, not
 // per-sample randomness) so the bank line reads as an irregular natural
 // edge rather than a perfectly geometric offset curve — real riverbanks
-// aren't a constant-width line. Amplitude is kept well under
-// RIVER_HALF_WIDTH so the two edges can never cross.
+// aren't a constant-width line.
 const LEFT_BANK_JITTER_SEED = 0;
 const RIGHT_BANK_JITTER_SEED = 37.5;
 function bankEdgeJitter(yTiles: number, seed: number): number {
@@ -71,6 +71,11 @@ function bankEdgeJitter(yTiles: number, seed: number): number {
     Math.sin(yTiles * 4.6 + seed * 0.6) * 0.05
   );
 }
+
+// Outer edge of the whole river+riverside band — this is the shape the
+// single backdrop image (see drawRiverBackdrop) is clipped to, not just
+// the water's edge.
+const RIVER_BAND_HALF_WIDTH = RIVER_HALF_WIDTH + RIVERSIDE_BAND_WIDTH;
 
 export class GameScene extends Phaser.Scene {
   private engine: SimulationEngine;
@@ -220,19 +225,17 @@ export class GameScene extends Phaser.Scene {
    * the same source photo doesn't look like an identical repeated stamp
    * across the map — cheap variety without needing real per-tile crops.
    *
-   * Lake tiles get a per-tile autotiled bank (see drawLakeTile). River
-   * tiles are handled differently: their water stamp is collected here
-   * and clipped as one continuous ribbon afterward (applyRiverRibbonMask)
-   * instead of a plain full-square stamp or a per-tile rounded blob, so
-   * the water reads as one smoothly curving waterway rather than a
-   * staircase of disconnected squares.
+   * Lake tiles get a per-tile autotiled bank (see drawLakeTile). The main
+   * river is handled entirely differently: 'river' and 'riverside' tiles
+   * are skipped here on purpose — instead of any per-tile stamp, the
+   * whole river gets one single unmodified backdrop image (drawRiverBackdrop),
+   * per the user's request to use their reference photo as-is rather than
+   * cropping or tiling it.
    */
   private drawTerrainTextures() {
     this.textureLayer.removeAll(true);
     this.waterMaskGraphics.forEach((g) => g.destroy());
     this.waterMaskGraphics = [];
-
-    const riverWaterImages: Phaser.GameObjects.Image[] = [];
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
@@ -243,27 +246,13 @@ export class GameScene extends Phaser.Scene {
           continue;
         }
 
-        if (terrain === "river") {
-          this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.riverside, 7919); // bank base
-          riverWaterImages.push(this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 0));
-          continue;
-        }
+        if (terrain === "river" || terrain === "riverside") continue; // covered by drawRiverBackdrop
 
         this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY[terrain], 0);
-
-        // Riverside tiles also get a water stamp on top (clipped below by
-        // the ribbon mask), since the smooth curve can sweep partway into
-        // this buffer band between two tile rows — without this there'd
-        // be a gap where the true curve reaches past the discrete 'river'
-        // tiles but no water photo exists underneath to reveal.
-        if (terrain === "riverside") {
-          riverWaterImages.push(this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 3571));
-        }
       }
     }
 
-    this.applyRiverRibbonMask(riverWaterImages);
-    this.drawRiverBankDetail();
+    this.drawRiverBackdrop();
   }
 
   /** One deterministically-varied full-tile photo stamp — see drawTerrainTextures' doc comment. */
@@ -320,30 +309,52 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Groups every river-related water stamp (on 'river' tiles and the
-   * water-overflow stamps on bordering 'riverside' tiles) plus a depth-
-   * shading overlay into one container, and clips the whole thing to a
-   * single ribbon shape sampled from the river's true continuous
-   * centerline — a spline-smoothing pass on the river specifically,
-   * independent of the coarse gameplay grid that 'river'-vs-'riverside'
-   * terrain assignment still uses.
+   * The main river, rendered as a single unmodified image rather than any
+   * per-tile stamp — the user's own AI-generated reference photo, used
+   * "as is" (not cropped into pieces, not tiled/repeated). It's scaled to
+   * cover the bounding box of the river's true curving path (river width +
+   * riverside band, across the whole map height) and clipped to that
+   * shape (buildRiverBandShape) so it doesn't spill onto the surrounding
+   * grass/hillside photos — but the image's own content isn't aligned to
+   * any particular tile or section; it's one continuous backdrop guessed
+   * into place, exactly as asked for.
    */
-  private applyRiverRibbonMask(images: Phaser.GameObjects.Image[]) {
-    if (images.length === 0) return;
+  private drawRiverBackdrop() {
+    const { left: leftPts, right: rightPts } = this.computeRiverBandPoints();
 
-    const container = this.add.container(0, 0, images);
-    this.textureLayer.add(container);
-    container.add(this.buildRiverWaterShading());
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const p of [...leftPts, ...rightPts]) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+    }
+    // A little extra padding beyond the jittered edges themselves so the
+    // image's display rect always fully contains the clip shape, even at
+    // its widest wiggle — otherwise the mask would reveal bare canvas at
+    // the edges instead of image content.
+    const padPx = TILE_SIZE * 0.5;
+    const left = minX - padPx;
+    const right = maxX + padPx;
+    const top = 0;
+    const bottom = MAP_HEIGHT * TILE_SIZE;
 
-    const ribbon = this.buildRiverRibbonShape();
-    this.waterMaskGraphics.push(ribbon);
-    container.setMask(ribbon.createGeometryMask());
-  }
-
-  private buildRiverRibbonShape(): Phaser.GameObjects.Graphics {
     const g = this.make.graphics(undefined, false);
     g.fillStyle(0xffffff);
+    g.fillPoints([...leftPts, ...rightPts.slice().reverse()], true);
 
+    const img = this.add.image((left + right) / 2, (top + bottom) / 2, RIVER_BACKDROP_TEXTURE_KEY);
+    img.setDisplaySize(right - left, bottom - top);
+    this.textureLayer.add(img);
+
+    this.waterMaskGraphics.push(g);
+    img.setMask(g.createGeometryMask());
+  }
+
+  /** The outer edge of the river+riverside band, in world pixels — see RIVER_BAND_HALF_WIDTH. */
+  private computeRiverBandPoints(): {
+    left: { x: number; y: number }[];
+    right: { x: number; y: number }[];
+  } {
     const totalSamples = MAP_HEIGHT * RIVER_RIBBON_SAMPLES_PER_TILE;
     const left: { x: number; y: number }[] = [];
     const right: { x: number; y: number }[] = [];
@@ -352,104 +363,13 @@ export class GameScene extends Phaser.Scene {
       const yTiles = (i / totalSamples) * MAP_HEIGHT;
       const cx = riverCenterX(yTiles);
       const py = yTiles * TILE_SIZE;
-      const leftX = cx - RIVER_HALF_WIDTH + bankEdgeJitter(yTiles, LEFT_BANK_JITTER_SEED);
-      const rightX = cx + RIVER_HALF_WIDTH + bankEdgeJitter(yTiles, RIGHT_BANK_JITTER_SEED);
+      const leftX = cx - RIVER_BAND_HALF_WIDTH + bankEdgeJitter(yTiles, LEFT_BANK_JITTER_SEED) * 1.6;
+      const rightX = cx + RIVER_BAND_HALF_WIDTH + bankEdgeJitter(yTiles, RIGHT_BANK_JITTER_SEED) * 1.6;
       left.push({ x: leftX * TILE_SIZE, y: py });
       right.push({ x: rightX * TILE_SIZE, y: py });
     }
 
-    g.fillPoints([...left, ...right.reverse()], true);
-    return g;
-  }
-
-  /**
-   * Depth/movement shading for the water: a darker wandering band (deeper
-   * water), a lighter one (shallows/current shimmer), and scattered bright
-   * glints — so the river reads as having depth and motion instead of one
-   * flat color. Drawn as thick strokes along wavy offsets from the true
-   * centerline, then clipped to the same ribbon mask as the water photos
-   * (added as a sibling in that container), so none of it spills onto land.
-   */
-  private buildRiverWaterShading(): Phaser.GameObjects.Graphics {
-    const g = this.add.graphics();
-    const totalSamples = MAP_HEIGHT * RIVER_RIBBON_SAMPLES_PER_TILE;
-
-    const wavyLinePoints = (offsetFn: (yTiles: number) => number): Phaser.Math.Vector2[] => {
-      const points: Phaser.Math.Vector2[] = [];
-      for (let i = 0; i <= totalSamples; i++) {
-        const yTiles = (i / totalSamples) * MAP_HEIGHT;
-        const cx = riverCenterX(yTiles) + offsetFn(yTiles);
-        points.push(new Phaser.Math.Vector2(cx * TILE_SIZE, yTiles * TILE_SIZE));
-      }
-      return points;
-    };
-
-    g.lineStyle(TILE_SIZE * 0.34, 0x1f4f66, 0.24);
-    g.strokePoints(wavyLinePoints((y) => Math.sin(y * 0.9) * 0.16), false, false);
-
-    g.lineStyle(TILE_SIZE * 0.16, 0xcdeef5, 0.2);
-    g.strokePoints(wavyLinePoints((y) => Math.sin(y * 0.9 + 2.4) * 0.16 - 0.18), false, false);
-
-    g.fillStyle(0xecfaff, 0.5);
-    for (let i = 0; i < MAP_HEIGHT * 2; i++) {
-      const seed = (i * 7919 + 13) >>> 0;
-      const yTiles = (seed % (MAP_HEIGHT * 97)) / 97;
-      const cx = riverCenterX(yTiles);
-      const spread = (((seed >> 8) % 100) / 100 - 0.5) * RIVER_HALF_WIDTH * 1.1;
-      const r = TILE_SIZE * (0.018 + ((seed >> 4) % 4) / 250);
-      g.fillCircle((cx + spread) * TILE_SIZE, yTiles * TILE_SIZE, r);
-    }
-
-    return g;
-  }
-
-  /**
-   * Scatters small rock and moss/plant clumps across every riverside
-   * tile — irregular texture detail breaking up what would otherwise be a
-   * uniform gravel strip, and (since the river's jittered edge sometimes
-   * sweeps into a riverside tile) visually blurring the water/land border
-   * rather than leaving it a clean line. Deliberately unmasked — these sit
-   * on top of both water and bank alike, which is the point.
-   */
-  private drawRiverBankDetail() {
-    const g = this.add.graphics();
-    this.textureLayer.add(g);
-
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        if (this.tiles[y][x].terrain === "riverside") this.scatterBankElements(g, x, y);
-      }
-    }
-  }
-
-  private scatterBankElements(g: Phaser.GameObjects.Graphics, x: number, y: number) {
-    const baseHash = (x * 733 + y * 977 + 11) >>> 0;
-    const count = 2 + (baseHash % 2); // 2-3 elements per tile
-
-    for (let i = 0; i < count; i++) {
-      const seed = (baseHash + i * 92821) >>> 0;
-      const px = x * TILE_SIZE + ((seed % 1000) / 1000) * TILE_SIZE;
-      const py = y * TILE_SIZE + (((seed >> 10) % 1000) / 1000) * TILE_SIZE;
-
-      if ((seed & 4) === 0) {
-        // Rock: a small two-tone ellipse (base + shadow side) for a hint of relief.
-        const r = TILE_SIZE * (0.05 + ((seed >> 3) % 5) / 100);
-        g.fillStyle(0x8a8378, 0.9);
-        g.fillEllipse(px, py, r * 2, r * 1.6);
-        g.fillStyle(0x63594d, 0.5);
-        g.fillEllipse(px + r * 0.35, py + r * 0.3, r * 1.1, r * 0.8);
-      } else {
-        // Moss/plant clump: a few overlapping small green blobs.
-        const clusterR = TILE_SIZE * 0.045;
-        for (let j = 0; j < 3; j++) {
-          const js = (seed + j * 1931) >>> 0;
-          const ox = ((js % 200) / 200 - 0.5) * clusterR * 2;
-          const oy = (((js >> 5) % 200) / 200 - 0.5) * clusterR * 2;
-          g.fillStyle(j % 2 === 0 ? 0x3d5a2c : 0x577a3d, 0.85);
-          g.fillCircle(px + ox, py + oy, clusterR * (0.7 + ((js >> 10) % 4) / 10));
-        }
-      }
-    }
+    return { left, right };
   }
 
   private drawGridLines(worldWidth: number, worldHeight: number) {
