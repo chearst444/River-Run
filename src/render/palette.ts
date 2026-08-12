@@ -51,6 +51,13 @@ export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   hunting_cabin: "sprite-building-hunting_cabin",
   mine_shaft: "sprite-building-mine_shaft",
   school: "sprite-building-school",
+  church: "sprite-building-church",
+  town_hall: "sprite-building-town_hall",
+  police_station: "sprite-building-police_station",
+  fire_station_full: "sprite-building-fire_station_full",
+  // fire_station_volunteer stays on its badge for now — the modest
+  // "before the upgrade" look actually reads well against the real
+  // fire_station_full render once that upgrade fires.
 };
 
 /** Files served from /public — textures and sprites alike load through the same Phaser loader. */
@@ -70,6 +77,10 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-building-hunting_cabin": "/sprites/building_hunting_cabin.png",
   "sprite-building-mine_shaft": "/sprites/building_mine_shaft.png",
   "sprite-building-school": "/sprites/building_school.png",
+  "sprite-building-church": "/sprites/building_church.png",
+  "sprite-building-town_hall": "/sprites/building_town_hall.png",
+  "sprite-building-police_station": "/sprites/building_police_station.png",
+  "sprite-building-fire_station_full": "/sprites/building_fire_station_full.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {

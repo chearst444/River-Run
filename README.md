@@ -94,10 +94,13 @@ flags balancing as a later pass once the systems are all in place, which they no
   listed keeps rendering exactly as before (a flat crop-color fill, or a
   category badge + monogram). Every crop now has real art (wheat, corn,
   potatoes, tomatoes, apples, cows, chickens, goats, sheep). Buildings: the
-  covered bridge, school (an actual building render), and the dock/hunting
-  cabin/mine shaft — the latter three use the resource they produce (a fish,
-  a deer, a raw ore ingot) rather than a picture of the structure, which is
-  what the user generated for them and reads just as clearly on a tile.
+  covered bridge, school, church, town_hall, police_station, and
+  fire_station_full are actual building renders; dock/hunting_cabin/mine_shaft
+  use the resource they produce (a fish, a deer, a raw ore ingot) rather than
+  a picture of the structure, which is what the user generated for them and
+  reads just as clearly on a tile. fire_station_volunteer deliberately keeps
+  its plain badge for now — a modest "before the upgrade" look plays well
+  against the real fire_station_full render once that upgrade fires.
   Everything else still uses its category-badge fallback. One inconsistency
   worth noting: the cow art is shot from directly overhead (matching the
   map's own aerial angle) while the other animals are a side profile — both
