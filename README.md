@@ -92,13 +92,25 @@ flags balancing as a later pass once the systems are all in place, which they no
   renders as that photo-cutout (`public/sprites/`, background-removed and
   cropped to content), scaled uniformly to fit its tile; anything not yet
   listed keeps rendering exactly as before (a flat crop-color fill, or a
-  category badge + monogram). So far: tomatoes, wheat, potatoes, chickens, cows,
-  apples, corn, and goats have real art (only sheep and every building besides
-  the covered bridge still use their fallback). One inconsistency worth noting:
-  the cow art is shot from directly overhead (matching the map's own aerial
-  angle) while the chicken/goat art is a side profile — both render fine on a
-  tile, just at different implied camera angles; flagging it in case that's
-  worth normalizing once more animals are in.
+  category badge + monogram). Every crop now has real art (wheat, corn,
+  potatoes, tomatoes, apples, cows, chickens, goats, sheep). Buildings: the
+  covered bridge, school (an actual building render), and the dock/hunting
+  cabin/mine shaft — the latter three use the resource they produce (a fish,
+  a deer, a raw ore ingot) rather than a picture of the structure, which is
+  what the user generated for them and reads just as clearly on a tile.
+  Everything else still uses its category-badge fallback. One inconsistency
+  worth noting: the cow art is shot from directly overhead (matching the
+  map's own aerial angle) while the other animals are a side profile — both
+  render fine on a tile, just at different implied camera angles; flagging
+  it in case that's worth normalizing later.
+  **Background removal note:** every one of these reference photos arrived as
+  a flattened JPEG with no real alpha channel, just a faint checkerboard
+  baked into the pixels. Background is recovered by flood-filling from the
+  image border through near-white pixels only (so it can't bridge through a
+  bright highlight *on* the subject — a first pass at this punched a hole in
+  a metal ore ingot's glare and a sheep's face marking before that fix), with
+  a small opening/inpainting pass to clean up narrow background tendrils
+  between thin parts (e.g. a chicken's legs).
 
 ## Tech Stack
 

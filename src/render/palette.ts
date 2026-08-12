@@ -31,7 +31,7 @@ export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
   apples: "sprite-crop-apples",
   corn: "sprite-crop-corn",
   goats: "sprite-crop-goats",
-  // sheep: still the flat-color fallback until art for it exists.
+  sheep: "sprite-crop-sheep",
 };
 
 /**
@@ -39,9 +39,18 @@ export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
  * anything not listed here keeps its category badge + monogram (see
  * GameScene.drawBuildingBadge). The covered bridge was the original
  * one-off special case; it's folded in here as just another entry.
+ *
+ * dock/hunting_cabin/mine_shaft use the resource they produce (fish, deer,
+ * ore) rather than a picture of the structure itself — that's what the
+ * user generated for them, and it reads clearly on a tile either way.
+ * school is an actual building render.
  */
 export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   covered_bridge: BRIDGE_TEXTURE_KEY,
+  dock: "sprite-building-dock",
+  hunting_cabin: "sprite-building-hunting_cabin",
+  mine_shaft: "sprite-building-mine_shaft",
+  school: "sprite-building-school",
 };
 
 /** Files served from /public — textures and sprites alike load through the same Phaser loader. */
@@ -56,6 +65,11 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-crop-apples": "/sprites/crop_apples.png",
   "sprite-crop-corn": "/sprites/crop_corn.png",
   "sprite-crop-goats": "/sprites/crop_goats.png",
+  "sprite-crop-sheep": "/sprites/crop_sheep.png",
+  "sprite-building-dock": "/sprites/building_dock.png",
+  "sprite-building-hunting_cabin": "/sprites/building_hunting_cabin.png",
+  "sprite-building-mine_shaft": "/sprites/building_mine_shaft.png",
+  "sprite-building-school": "/sprites/building_school.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
