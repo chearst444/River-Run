@@ -26,6 +26,12 @@ export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
   tomatoes: "sprite-crop-tomatoes",
   wheat: "sprite-crop-wheat",
   potatoes: "sprite-crop-potatoes",
+  chickens: "sprite-crop-chickens",
+  cows: "sprite-crop-cows",
+  apples: "sprite-crop-apples",
+  corn: "sprite-crop-corn",
+  goats: "sprite-crop-goats",
+  // sheep: still the flat-color fallback until art for it exists.
 };
 
 /**
@@ -45,6 +51,11 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-crop-tomatoes": "/sprites/crop_tomatoes.png",
   "sprite-crop-wheat": "/sprites/crop_wheat.png",
   "sprite-crop-potatoes": "/sprites/crop_potatoes.png",
+  "sprite-crop-chickens": "/sprites/crop_chickens.png",
+  "sprite-crop-cows": "/sprites/crop_cows.png",
+  "sprite-crop-apples": "/sprites/crop_apples.png",
+  "sprite-crop-corn": "/sprites/crop_corn.png",
+  "sprite-crop-goats": "/sprites/crop_goats.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {

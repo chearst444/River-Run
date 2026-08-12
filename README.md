@@ -92,9 +92,13 @@ flags balancing as a later pass once the systems are all in place, which they no
   renders as that photo-cutout (`public/sprites/`, background-removed and
   cropped to content), scaled uniformly to fit its tile; anything not yet
   listed keeps rendering exactly as before (a flat crop-color fill, or a
-  category badge + monogram). So far: tomatoes, wheat, and potatoes have real
-  art; every other crop and every other building still uses its fallback until
-  art for it is added.
+  category badge + monogram). So far: tomatoes, wheat, potatoes, chickens, cows,
+  apples, corn, and goats have real art (only sheep and every building besides
+  the covered bridge still use their fallback). One inconsistency worth noting:
+  the cow art is shot from directly overhead (matching the map's own aerial
+  angle) while the chicken/goat art is a side profile — both render fine on a
+  tile, just at different implied camera angles; flagging it in case that's
+  worth normalizing once more animals are in.
 
 ## Tech Stack
 
