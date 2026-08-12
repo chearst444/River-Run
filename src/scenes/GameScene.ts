@@ -12,6 +12,7 @@ import {
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
+import { isWaterTerrain } from "../sim/terrain";
 import {
   TERRAIN_COLORS,
   TERRAIN_TEXTURE_KEY,
@@ -35,9 +36,23 @@ const DRAG_ZOOM_SENSITIVITY = 1;
 // the palette's terrain-type legibility, without hiding the photo texture.
 const BLEND_WASH_ALPHA = 0.4;
 
+// River/lake autotiling: each water tile's 4 corners are independently
+// rounded based on whether the two edges touching that corner are also
+// water (square, seamless) or land (rounded bank) — the standard blob-tile
+// technique, done procedurally since there's no hand-painted directional
+// river tileset. A corner with land on both sides rounds hard (the outside
+// of a bend, or a lone tile's tip); a corner with land on one side rounds
+// gently (a straight bank edge, softened instead of a hard right angle).
+const RIVER_CORNER_ROUND_STRONG = 0.46; // fraction of TILE_SIZE
+const RIVER_CORNER_ROUND_MILD = 0.22;
+
 export class GameScene extends Phaser.Scene {
   private engine: SimulationEngine;
   private textureLayer!: Phaser.GameObjects.Container;
+  // Geometry-mask source shapes for water tiles' rounded corners. Not part
+  // of the display list (created via `make.graphics(_, false)`), so they
+  // need their own cleanup list rather than riding along with a container.
+  private waterMaskGraphics: Phaser.GameObjects.Graphics[] = [];
   private terrainLayer!: Phaser.GameObjects.Graphics;
   private zoneLayer!: Phaser.GameObjects.Graphics;
   private buildingLayer!: Phaser.GameObjects.Container;
@@ -178,27 +193,79 @@ export class GameScene extends Phaser.Scene {
    * (the source photos are square and directionless, so this is safe) so
    * the same source photo doesn't look like an identical repeated stamp
    * across the map — cheap variety without needing real per-tile crops.
+   *
+   * River/lake tiles get an extra autotiling pass on top (see
+   * drawWaterTile) instead of the plain full-square stamp every other
+   * terrain uses, so the water reads as one curving waterway rather than
+   * a staircase of disconnected blue squares.
    */
   private drawTerrainTextures() {
     this.textureLayer.removeAll(true);
+    this.waterMaskGraphics.forEach((g) => g.destroy());
+    this.waterMaskGraphics = [];
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
-        const key = TERRAIN_TEXTURE_KEY[this.tiles[y][x].terrain];
-        const hash = (x * 928371 + y * 45751 + 1) >>> 0;
-
-        const img = this.add.image(
-          x * TILE_SIZE + TILE_SIZE / 2,
-          y * TILE_SIZE + TILE_SIZE / 2,
-          key,
-        );
-        img.setDisplaySize(TILE_SIZE, TILE_SIZE);
-        img.setFlipX((hash & 1) === 1);
-        img.setFlipY(((hash >> 1) & 1) === 1);
-        img.setAngle(((hash >> 2) % 4) * 90);
-        this.textureLayer.add(img);
+        const terrain = this.tiles[y][x].terrain;
+        if (isWaterTerrain(terrain)) {
+          this.drawWaterTile(x, y);
+          continue;
+        }
+        this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY[terrain], 0);
       }
     }
+  }
+
+  /** One deterministically-varied full-tile photo stamp — see drawTerrainTextures' doc comment. */
+  private placeTextureStamp(x: number, y: number, key: string, hashSalt: number): Phaser.GameObjects.Image {
+    const hash = (x * 928371 + y * 45751 + 1 + hashSalt) >>> 0;
+    const img = this.add.image(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, key);
+    img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+    img.setFlipX((hash & 1) === 1);
+    img.setFlipY(((hash >> 1) & 1) === 1);
+    img.setAngle(((hash >> 2) % 4) * 90);
+    this.textureLayer.add(img);
+    return img;
+  }
+
+  /**
+   * Autotiled water tile: a pebble-bank stamp underneath (so rounded-off
+   * corners reveal bank instead of empty space), then the water photo on
+   * top masked to a rounded rect whose 4 corner radii are computed from
+   * this tile's N/E/S/W neighbors — square where water continues into a
+   * neighbor, rounded where it meets land. See the RIVER_CORNER_ROUND_*
+   * constants' doc comment for the rule.
+   */
+  private drawWaterTile(x: number, y: number) {
+    this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.riverside, 7919); // bank base
+    const waterImg = this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 0);
+
+    const isWaterAt = (nx: number, ny: number): boolean => {
+      const t = this.tiles[ny]?.[nx];
+      return t ? isWaterTerrain(t.terrain) : false; // map edge counts as a bank
+    };
+    const north = isWaterAt(x, y - 1);
+    const south = isWaterAt(x, y + 1);
+    const west = isWaterAt(x - 1, y);
+    const east = isWaterAt(x + 1, y);
+
+    const cornerRadius = (edgeA: boolean, edgeB: boolean): number => {
+      if (edgeA && edgeB) return 0;
+      if (!edgeA && !edgeB) return TILE_SIZE * RIVER_CORNER_ROUND_STRONG;
+      return TILE_SIZE * RIVER_CORNER_ROUND_MILD;
+    };
+    const radii = {
+      tl: cornerRadius(north, west),
+      tr: cornerRadius(north, east),
+      bl: cornerRadius(south, west),
+      br: cornerRadius(south, east),
+    };
+
+    const maskShape = this.make.graphics(undefined, false);
+    maskShape.fillStyle(0xffffff);
+    maskShape.fillRoundedRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, radii);
+    this.waterMaskGraphics.push(maskShape);
+    waterImg.setMask(maskShape.createGeometryMask());
   }
 
   private drawGridLines(worldWidth: number, worldHeight: number) {

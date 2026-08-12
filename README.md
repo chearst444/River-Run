@@ -72,6 +72,15 @@ flags balancing as a later pass once the systems are all in place, which they no
   keeps each terrain type's color identity readable at a glance. Buildings render as
   a consistent colored badge + monogram (e.g. "PWR", "H2O", "SCH") instead of a mix
   of differently-styled emoji.
+- **River autotiling** — river/lake tiles no longer render as flat squares. Each water
+  tile's four corners are independently rounded based on its N/E/S/W neighbors (the
+  standard blob-tile technique): square where water continues into a neighboring water
+  tile, gently rounded where it meets a straight bank, and rounded harder where land is
+  on both adjacent sides (a bend's outside edge, or a lone tile's tip). A pebble-bank
+  photo sits underneath every water tile so the rounded-off corners reveal bank
+  texture instead of empty space. Done procedurally (Phaser `fillRoundedRect` +
+  `GeometryMask` per water tile) since there's no hand-painted directional river
+  tileset — no separate finer sub-grid needed for the curve to read smoothly.
 
 ## Tech Stack
 

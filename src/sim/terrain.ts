@@ -104,6 +104,11 @@ export function getTile(tiles: Tile[][], x: number, y: number): Tile | undefined
   return tiles[y]?.[x];
 }
 
+/** River and lake both count as "water" for adjacency/rendering purposes — they connect seamlessly. */
+export function isWaterTerrain(terrain: TerrainType): boolean {
+  return terrain === "river" || terrain === "lake";
+}
+
 /** Farmland must border the river or the lake (or a riverside tile). */
 export function isWaterAdjacent(tiles: Tile[][], x: number, y: number): boolean {
   for (let dy = -1; dy <= 1; dy++) {
