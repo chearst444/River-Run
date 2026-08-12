@@ -14,7 +14,6 @@ const ZONE_TOOLS: ZoneToolDef[] = [
   { tool: "residential", label: "Residential", color: "#5b8fd6" },
   { tool: "commercial", label: "Commercial", color: "#d6a75b" },
   { tool: "industrial", label: "Industrial", color: "#b05b5b" },
-  { tool: "farmland", label: "Farmland", color: "#d9c25b" },
   { tool: "bulldoze", label: "Remove", color: "#222222" },
 ];
 
@@ -32,12 +31,18 @@ type TabId = "zone" | BuildingCategory;
  * Plain-DOM toolbar overlaid on the canvas. Real buttons give us free
  * accessibility, touch handling, and layout without fighting an in-canvas
  * UI system. Tabs group tools the way the GDD's build phases do.
+ *
+ * Planting lives directly in the Farm tab: tapping a crop (Wheat, Apple
+ * Orchard, Cattle, ...) both zones the tile as farmland *and* picks what's
+ * growing there in one tap — no separate "select Farmland, then find the
+ * crop picker" step to discover.
  */
 export class Toolbar {
   private root: HTMLDivElement;
   private tabsRow: HTMLDivElement;
   private toolsRow: HTMLDivElement;
   private cropRow: HTMLDivElement;
+  private cropRowLabel: HTMLDivElement;
   private toast: HTMLDivElement;
   private toastTimer: number | undefined;
   private activeTab: TabId = "zone";
@@ -48,6 +53,10 @@ export class Toolbar {
     this.root = document.createElement("div");
     this.root.className = "toolbar";
 
+    this.cropRowLabel = document.createElement("div");
+    this.cropRowLabel.className = "crop-row-label";
+    this.cropRowLabel.textContent = "Plant";
+
     this.cropRow = document.createElement("div");
     this.cropRow.className = "crop-row";
 
@@ -57,6 +66,7 @@ export class Toolbar {
     this.toolsRow = document.createElement("div");
     this.toolsRow.className = "tools-row";
 
+    this.root.appendChild(this.cropRowLabel);
     this.root.appendChild(this.cropRow);
     this.root.appendChild(this.tabsRow);
     this.root.appendChild(this.toolsRow);
@@ -67,8 +77,9 @@ export class Toolbar {
     container.appendChild(this.toast);
 
     this.renderTabs();
-    this.renderTools();
     this.renderCropPicker();
+    this.renderTools();
+    this.updateCropRowVisibility();
 
     eventBus.on(Events.PlacementRejected, (reason: string) => this.showToast(reason));
     eventBus.emit(Events.ToolSelected, { tool: this.selectedTool });
@@ -89,6 +100,7 @@ export class Toolbar {
         this.activeTab = tab.id;
         this.renderTabs();
         this.renderTools();
+        this.updateCropRowVisibility();
       });
       this.tabsRow.appendChild(btn);
     });
@@ -110,8 +122,6 @@ export class Toolbar {
         this.toolsRow.appendChild(btn);
       });
     }
-
-    this.updateCropRowVisibility();
   }
 
   private renderCropPicker() {
@@ -120,19 +130,23 @@ export class Toolbar {
       const btn = document.createElement("button");
       btn.className = "crop-btn";
       btn.textContent = CROPS[id].label;
-      if (id === this.selectedCrop) btn.classList.add("active");
+      if (this.selectedTool === "farmland" && id === this.selectedCrop) btn.classList.add("active");
       btn.addEventListener("click", () => {
         this.selectedCrop = id;
+        this.selectedTool = "farmland";
         this.renderCropPicker();
+        this.renderTools(); // clear any active building/zone button
+        eventBus.emit(Events.ToolSelected, { tool: "farmland" });
         eventBus.emit(Events.CropSelected, id);
       });
       this.cropRow.appendChild(btn);
     });
-    this.updateCropRowVisibility();
   }
 
   private updateCropRowVisibility() {
-    this.cropRow.style.display = this.selectedTool === "farmland" ? "flex" : "none";
+    const show = this.activeTab === "agriculture";
+    this.cropRow.style.display = show ? "flex" : "none";
+    this.cropRowLabel.style.display = show ? "block" : "none";
   }
 
   private makeButton(tool: ToolSelection, label: string, color: string): HTMLButtonElement {
@@ -149,7 +163,7 @@ export class Toolbar {
     this.selectedTool = tool;
     this.toolsRow.querySelectorAll(".toolbar-btn").forEach((el) => el.classList.remove("active"));
     btn.classList.add("active");
-    this.updateCropRowVisibility();
+    this.renderCropPicker(); // clear crop highlight when switching away from planting
     eventBus.emit(Events.ToolSelected, { tool });
   }
 

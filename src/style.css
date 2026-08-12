@@ -86,6 +86,15 @@
   display: none;
 }
 
+.crop-row-label {
+  display: none;
+  color: var(--ink-dim);
+  font: 700 11px/1 system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 2px;
+}
+
 .crop-btn {
   flex: 0 0 auto;
   padding: 6px 12px;
