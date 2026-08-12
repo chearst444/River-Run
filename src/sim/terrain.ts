@@ -10,7 +10,14 @@
  * access.
  */
 
-import { MAP_WIDTH, MAP_HEIGHT, inBounds, type Tile, type TerrainType } from "../config/grid";
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  inBounds,
+  createTile,
+  type Tile,
+  type TerrainType,
+} from "../config/grid";
 
 // Simple deterministic pseudo-random (mulberry32) so a given seed always
 // produces the same valley — useful for save/load and testing.
@@ -81,14 +88,7 @@ export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
         elevation = 1.5 + rand() * 1;
       }
 
-      row.push({
-        x,
-        y,
-        terrain,
-        zone: "none",
-        elevation,
-        hasRoadAccess: false,
-      });
+      row.push(createTile(x, y, terrain, elevation));
     }
     tiles.push(row);
   }
@@ -108,6 +108,18 @@ export function isWaterAdjacent(tiles: Tile[][], x: number, y: number): boolean 
       if (dx === 0 && dy === 0) continue;
       const t = getTile(tiles, x + dx, y + dy);
       if (t && (t.terrain === "river" || t.terrain === "lake")) return true;
+    }
+  }
+  return false;
+}
+
+/** Hunting cabins must border forest (or sit in the hillside fringe near it). */
+export function isForestAdjacent(tiles: Tile[][], x: number, y: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const t = getTile(tiles, x + dx, y + dy);
+      if (t && (t.terrain === "forest" || t.terrain === "hillside")) return true;
     }
   }
   return false;

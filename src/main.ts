@@ -2,9 +2,20 @@ import Phaser from "phaser";
 import "./style.css";
 import { GameScene } from "./scenes/GameScene";
 import { Toolbar } from "./ui/Toolbar";
+import { HUD } from "./ui/HUD";
+import { ModalController } from "./ui/Modal";
+import { generateTerrain } from "./sim/terrain";
+import { createInitialGameState } from "./sim/state";
+import { SimulationEngine } from "./sim/engine";
 
 const appEl = document.getElementById("app");
 if (!appEl) throw new Error("#app container not found");
+
+const tiles = generateTerrain({ seed: 1337 });
+const state = createInitialGameState(tiles);
+const engine = new SimulationEngine(state);
+
+const gameScene = new GameScene(engine);
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -18,9 +29,15 @@ const config: Phaser.Types.Core.GameConfig = {
   input: {
     activePointers: 3, // two fingers for pinch + headroom
   },
-  scene: [GameScene],
+  scene: [gameScene],
 };
 
 new Phaser.Game(config);
 
+new HUD(appEl, engine);
 new Toolbar(appEl);
+new ModalController(appEl, engine);
+
+// Dev/debug hook — lets the browser console (or automated smoke tests)
+// inspect and drive the sim directly. Harmless in production.
+(window as unknown as { __engine: SimulationEngine }).__engine = engine;

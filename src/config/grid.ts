@@ -23,7 +23,7 @@ export type TerrainType =
   | "mountain"
   | "forest";
 
-/** Zoning/building layer — what the player has placed on a tile. */
+/** Broad zoning layer — what category of use the player has assigned a tile. */
 export type ZoneType =
   | "none"
   | "road"
@@ -33,17 +33,84 @@ export type ZoneType =
   | "farmland"
   | "civic";
 
+/** Discrete facility placed on a tile, layered on top of (or defining) its zone. */
+export type BuildingId =
+  | "power_plant"
+  | "water_tower"
+  | "school"
+  | "clinic"
+  | "church"
+  | "town_hall"
+  | "police_station"
+  | "fire_station_volunteer"
+  | "fire_station_full"
+  | "covered_bridge"
+  | "dock"
+  | "hunting_cabin"
+  | "barn"
+  | "silo"
+  | "farmers_market"
+  | "historic_mill"
+  | "mine_shaft"
+  | "blacksmith"
+  | "bakery"
+  | "butcher"
+  | "tailor";
+
+/** What's currently planted/raised on a farmland tile. */
+export type CropId =
+  | "wheat"
+  | "corn"
+  | "potatoes"
+  | "tomatoes"
+  | "apples"
+  | "cows"
+  | "chickens"
+  | "goats"
+  | "sheep";
+
+export type ResidentialDensity = 0 | 1 | 2; // low / medium / high
+
 export interface Tile {
   x: number;
   y: number;
   terrain: TerrainType;
   zone: ZoneType;
+  building: BuildingId | null;
+  cropType: CropId | null;
   /** Elevation in arbitrary units; higher = safer from flooding. */
   elevation: number;
-  /** True once connected to the road network (computed, not stored long-term ideally, but cached here for render). */
+  /** True once connected to the road network (computed each sim tick). */
   hasRoadAccess: boolean;
+  hasPower: boolean;
+  hasWater: boolean;
+  density: ResidentialDensity;
+  /** Set by disasters; damaged tiles produce/house nothing until repaired. */
+  damaged: boolean;
 }
 
 export function inBounds(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT;
+}
+
+export function createTile(
+  x: number,
+  y: number,
+  terrain: TerrainType,
+  elevation: number,
+): Tile {
+  return {
+    x,
+    y,
+    terrain,
+    zone: "none",
+    building: null,
+    cropType: null,
+    elevation,
+    hasRoadAccess: false,
+    hasPower: false,
+    hasWater: false,
+    density: 0,
+    damaged: false,
+  };
 }
