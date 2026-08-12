@@ -1,0 +1,20 @@
+{
+  "name": "river-run",
+  "version": "0.1.0",
+  "description": "A grid-based Appalachian river valley town builder — SimCity + Tropico mashup, mobile-first, built with Phaser.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

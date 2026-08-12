@@ -1,0 +1,66 @@
+.toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom))
+    calc(10px + env(safe-area-inset-left));
+  overflow-x: auto;
+  background: linear-gradient(to top, rgba(10, 16, 11, 0.92), rgba(10, 16, 11, 0.55));
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  z-index: 10;
+}
+
+.toolbar-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef4ea;
+  font: 600 13px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toolbar-btn.active {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.toolbar-btn .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  top: calc(16px + env(safe-area-inset-top));
+  transform: translate(-50%, -12px);
+  background: rgba(20, 10, 10, 0.9);
+  color: #ffdede;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font: 500 13px system-ui, sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  z-index: 20;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
