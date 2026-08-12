@@ -101,19 +101,30 @@ flags balancing as a later pass once the systems are all in place, which they no
   reads just as clearly on a tile. fire_station_volunteer deliberately keeps
   its plain badge for now — a modest "before the upgrade" look plays well
   against the real fire_station_full render once that upgrade fires.
-  Everything else still uses its category-badge fallback. One inconsistency
-  worth noting: the cow art is shot from directly overhead (matching the
-  map's own aerial angle) while the other animals are a side profile — both
-  render fine on a tile, just at different implied camera angles; flagging
-  it in case that's worth normalizing later.
+  Also real building renders: power_plant, water_tower, barn, silo, and
+  bakery. Everything else (production-chain shops besides bakery, the
+  remaining civic buildings) still uses its category-badge fallback. One
+  inconsistency worth noting: the cow art is shot from directly overhead
+  (matching the map's own aerial angle) while the other animals are a side
+  profile — both render fine on a tile, just at different implied camera
+  angles; flagging it in case that's worth normalizing later.
   **Background removal note:** every one of these reference photos arrived as
   a flattened JPEG with no real alpha channel, just a faint checkerboard
-  baked into the pixels. Background is recovered by flood-filling from the
-  image border through near-white pixels only (so it can't bridge through a
-  bright highlight *on* the subject — a first pass at this punched a hole in
-  a metal ore ingot's glare and a sheep's face marking before that fix), with
-  a small opening/inpainting pass to clean up narrow background tendrils
-  between thin parts (e.g. a chicken's legs).
+  baked into the pixels, removed by thresholding distance-from-white into an
+  alpha channel. Two opposite failure modes showed up as more assets came
+  in, and there's no single setting that avoids both: (1) a bright highlight
+  *on* the subject (a metal ingot's glare, a sheep's face marking) is pale
+  enough to get matted away like background — fixed for those two by only
+  clearing near-white pixels that flood-fill back to the image border,
+  so an isolated interior highlight can't qualify; but (2) that same
+  border-connectivity requirement then refuses to clear genuine enclosed
+  negative space, like the sky glimpsed *through* the water tower's open
+  lattice legs, since those pixels don't trace back to the border either —
+  fixed for that one by dropping the connectivity requirement and matting
+  purely by color instead. Each new asset gets eyeballed against a solid
+  background after processing to catch whichever failure mode applies, and
+  the simpler no-connectivity approach is the default; the border-flood-fill
+  version is used only where a highlight-on-subject problem actually shows up.
 
 ## Tech Stack
 
