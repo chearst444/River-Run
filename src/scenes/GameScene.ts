@@ -17,6 +17,7 @@ import {
   TERRAIN_COLORS,
   TERRAIN_TEXTURE_KEY,
   TEXTURE_FILES,
+  BRIDGE_TEXTURE_KEY,
   ZONE_COLORS,
   CROP_COLORS,
   GRID_LINE_COLOR,
@@ -502,9 +503,16 @@ export class GameScene extends Phaser.Scene {
    * Every building renders the same way — a rounded-square badge colored
    * by its category (the same palette as the toolbar tabs) with a bold
    * monogram — so the map reads as one consistent icon family rather
-   * than a mix of styles.
+   * than a mix of styles. Covered bridges are the one exception: the
+   * extracted reference photo (see palette.ts's BRIDGE_TEXTURE_KEY) reads
+   * as an actual bridge crossing the water, which a generic badge can't.
    */
   private drawBuildingBadge(x: number, y: number, building: BuildingId) {
+    if (building === "covered_bridge") {
+      this.drawBridgeSprite(x, y);
+      return;
+    }
+
     const def = BUILDINGS[building];
     const centerX = x * TILE_SIZE + TILE_SIZE / 2;
     const centerY = y * TILE_SIZE + TILE_SIZE / 2;
@@ -526,6 +534,14 @@ export class GameScene extends Phaser.Scene {
     });
     label.setOrigin(0.5, 0.5);
     this.buildingLayer.add(label);
+  }
+
+  private drawBridgeSprite(x: number, y: number) {
+    const centerX = x * TILE_SIZE + TILE_SIZE / 2;
+    const centerY = y * TILE_SIZE + TILE_SIZE / 2;
+    const img = this.add.image(centerX, centerY, BRIDGE_TEXTURE_KEY);
+    img.setDisplaySize(TILE_SIZE * 0.96, TILE_SIZE * 0.96);
+    this.buildingLayer.add(img);
   }
 
   private setupInput() {

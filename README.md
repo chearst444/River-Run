@@ -101,6 +101,20 @@ flags balancing as a later pass once the systems are all in place, which they no
   - The water itself gets a depth-shading overlay — a darker wandering band, a
     lighter shimmer band, and scattered bright glints — clipped to the same ribbon
     mask as the water photos, so it no longer reads as one flat color.
+- **River textures sourced from a user reference image** — `river_water.jpg`,
+  `river_bank.jpg`, and `river_bridge.jpg` are cropped and processed from a 2400×2400
+  AI-generated reference image the user provided, replacing the general-purpose
+  clandia water/pebble textures for the river/riverside specifically (other terrain
+  types are unaffected). Water and bank were cropped to clean ~75–115px source
+  squares, made seamlessly tileable (offset-to-center + localized seam blend), and
+  upscaled to 256×256; the bridge was cropped tighter around just the structure and
+  used as a discrete sprite (`covered_bridge`'s special case in
+  `drawBuildingBadge`/`drawBridgeSprite`) rather than a repeating fill, since a
+  bridge isn't a tileable pattern. **Known limitation:** the bank source crop's
+  seam is faint but not perfect (large, individually-recognizable rock shapes are
+  inherently harder to make seamless than fine-grained noise like the water); the
+  engine's existing per-tile flip/rotation variety substantially masks this in
+  actual play, but it's not a pixel-perfect tile.
 
 ## Tech Stack
 

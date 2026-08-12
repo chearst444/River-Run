@@ -12,25 +12,33 @@ export const TERRAIN_COLORS: Record<TerrainType, number> = {
 };
 
 /**
- * Photo textures (from the user's own texture library) mapped onto each
- * terrain type. River and lake share one water photo — tinted apart by
- * the TERRAIN_COLORS blend wash in GameScene, same as every other
- * terrain-to-terrain seam.
+ * Photo textures mapped onto each terrain type. River and lake share one
+ * water photo — tinted apart by the TERRAIN_COLORS blend wash in
+ * GameScene, same as every other terrain-to-terrain seam.
+ *
+ * river/riverside are cropped and processed (seamless-tiled, see
+ * docs/river-textures.md) from the user's own AI-generated reference
+ * image rather than the general clandia texture library — a closer match
+ * to the stacked-stone-bank, bright turquoise-water look they wanted.
  */
 export const TERRAIN_TEXTURE_KEY: Record<TerrainType, string> = {
-  river: "tex-water",
-  lake: "tex-water",
-  riverside: "tex-pebble",
+  river: "tex-river-water",
+  lake: "tex-river-water",
+  riverside: "tex-river-bank",
   lowland: "tex-grass",
   hillside: "tex-straw",
   mountain: "tex-stone",
   forest: "tex-leaves",
 };
 
-/** File served from /public/textures — one fetch per unique key even though river+lake share it. */
+/** The extracted bridge photo — a discrete sprite (see drawBuildingBadge's covered_bridge case), not a repeating fill. */
+export const BRIDGE_TEXTURE_KEY = "tex-river-bridge";
+
+/** Files served from /public/textures. */
 export const TEXTURE_FILES: Record<string, string> = {
-  "tex-water": "/textures/water.jpg",
-  "tex-pebble": "/textures/pebble.jpg",
+  "tex-river-water": "/textures/river_water.jpg",
+  "tex-river-bank": "/textures/river_bank.jpg",
+  [BRIDGE_TEXTURE_KEY]: "/textures/river_bridge.jpg",
   "tex-grass": "/textures/grass.jpg",
   "tex-straw": "/textures/straw.jpg",
   "tex-stone": "/textures/stone.jpg",
