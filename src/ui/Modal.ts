@@ -32,6 +32,7 @@ export class ModalController {
     eventBus.on(Events.ImmigrationOffered, (wave: ImmigrationWave) => this.showImmigration(wave));
     eventBus.on(Events.ProposalOffered, (id: ProposalId) => this.showProposal(id));
     eventBus.on(Events.ElectionResult, (result: ElectionResult) => this.showElection(result));
+    eventBus.on(Events.GameOver, (reason: string) => this.showGameOver(reason));
   }
 
   private open() {
@@ -102,6 +103,23 @@ export class ModalController {
     this.card.querySelector('[data-choice="ok"]')?.addEventListener("click", () => {
       this.engine.acknowledgeElection();
       this.close();
+    });
+    this.open();
+  }
+
+  private showGameOver(reason: string) {
+    const s = this.engine.state;
+    this.card.classList.add("modal-card--gameover");
+    this.card.innerHTML = `
+      <h2>River Run Has Fallen</h2>
+      <p>${reason}</p>
+      <p class="modal-stats">Survived to Year ${s.time.year}, ${s.time.season} — population peaked before the collapse.</p>
+      <div class="modal-actions">
+        <button class="modal-btn primary" data-choice="restart">Start Over</button>
+      </div>
+    `;
+    this.card.querySelector('[data-choice="restart"]')?.addEventListener("click", () => {
+      window.location.reload();
     });
     this.open();
   }

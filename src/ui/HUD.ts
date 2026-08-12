@@ -62,6 +62,7 @@ export class HUD {
 
     this.bar.innerHTML = `
       <button class="hud-menu-btn" aria-label="Menu">☰</button>
+      <button class="hud-undo-btn" aria-label="Undo last action" title="Undo last action">↩︎</button>
       <div class="hud-stat"><span class="hud-label">${formatDate(s.time)}</span></div>
       <div class="hud-stat">👤 ${pop}</div>
       <div class="hud-stat ${treasuryClass}">$${Math.round(s.treasury)}</div>
@@ -69,6 +70,10 @@ export class HUD {
       <div class="hud-stat">📊 ${Math.round(s.approval)}%</div>
     `;
     this.bar.querySelector(".hud-menu-btn")?.addEventListener("click", () => this.togglePanel());
+    this.bar.querySelector(".hud-undo-btn")?.addEventListener("click", () => {
+      const result = this.engine.undo();
+      if (!result.ok && result.reason) eventBus.emit(Events.PlacementRejected, result.reason);
+    });
 
     this.panel.style.display = this.panelOpen ? "flex" : "none";
     if (!this.panelOpen) return;

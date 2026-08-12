@@ -44,6 +44,10 @@ export interface GameState {
   log: { day: number; text: string }[];
   rngState: number;
   lastWasteMessage: string | null;
+  /** Consecutive days the town has gone seriously hungry — the famine/collapse clock. */
+  famineStreak: number;
+  gameOver: boolean;
+  gameOverReason: string | null;
 }
 
 export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e3779b9): GameState {
@@ -74,6 +78,9 @@ export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e
     log: [],
     rngState: rng.a,
     lastWasteMessage: null,
+    famineStreak: 0,
+    gameOver: false,
+    gameOverReason: null,
   };
 }
 

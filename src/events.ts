@@ -20,6 +20,7 @@ export const Events = {
   LogMessage: "log-message",
   GameLoaded: "game-loaded",
   CropSelected: "crop-selected",
+  GameOver: "game-over",
 } as const;
 
 export type ToolSelection = ZoneType | BuildingId | "bulldoze";

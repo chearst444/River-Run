@@ -15,7 +15,7 @@ const ZONE_TOOLS: ZoneToolDef[] = [
   { tool: "commercial", label: "Commercial", color: "#d6a75b" },
   { tool: "industrial", label: "Industrial", color: "#b05b5b" },
   { tool: "farmland", label: "Farmland", color: "#d9c25b" },
-  { tool: "bulldoze", label: "Bulldoze", color: "#222222" },
+  { tool: "bulldoze", label: "Remove", color: "#222222" },
 ];
 
 const CATEGORY_TABS: { category: BuildingCategory; label: string }[] = [

@@ -276,6 +276,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleTap(pointer: Phaser.Input.Pointer) {
+    if (this.engine.state.gameOver) {
+      eventBus.emit(Events.PlacementRejected, "River Run has fallen — start over to keep building.");
+      return;
+    }
     if (this.engine.state.paused) {
       eventBus.emit(Events.PlacementRejected, "Waiting on a decision — see the popup.");
       return;

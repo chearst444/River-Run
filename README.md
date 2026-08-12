@@ -35,7 +35,12 @@ loop:
 - **Flavor events** — county fair, volunteer→full fire station upgrade, covered bridge
 - **Major decision events** — data center and factory proposals, approve/reject with
   lasting jobs/revenue vs. happiness/pollution trade-offs
-- **Polish** — save/load via `localStorage`, mobile touch tuning
+- **Polish** — save/load via `localStorage`, mobile touch tuning, an undo button (↩ in the
+  HUD bar, reverses the last placement/removal including its cost), a Remove tool that
+  refunds 50% of a building's cost, and a starvation/collapse consequence: a town that
+  outgrows its food supply goes hungry, loses population directly, and — after ~20
+  straight days of famine — the game ends with a "River Run Has Fallen" screen and a
+  restart option
 
 Numeric balance (costs, yields, happiness weights) is intentionally loose — the GDD
 flags balancing as a later pass once the systems are all in place, which they now are.

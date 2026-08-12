@@ -5,7 +5,7 @@
  * here or in the pure `sim/*` modules it composes.
  */
 
-import type { BuildingId, CropId, ZoneType } from "../config/grid";
+import type { BuildingId, CropId, Tile, ZoneType } from "../config/grid";
 import { canPlaceZone } from "./placement";
 import { BUILDINGS, canPlaceBuilding } from "./buildings";
 import { updateRoadAccess, updateUtilities } from "./network";
@@ -33,11 +33,28 @@ const FOOD_NEED_PER_CAPITA_PER_DAY = 0.45;
 const REPAIR_COST_PER_TILE = 80;
 const SCANDAL_THRESHOLD = 400;
 const MAX_DAYS_PER_UPDATE = 6; // guards against a huge catch-up burst after the tab was backgrounded
+const BULLDOZE_REFUND_FRACTION = 0.5;
+const UNDO_STACK_LIMIT = 20;
+
+// Food security below this fraction of need counts as "going hungry" for
+// both the direct population loss and the famine-collapse clock.
+const STARVATION_THRESHOLD = 0.5;
+const STARVATION_POP_LOSS_RATE = 0.08;
+const STARVATION_MIN_POPULATION = 6; // a handful of hungry founders isn't a famine
+const FAMINE_COLLAPSE_DAYS = 20;
+
+interface UndoEntry {
+  x: number;
+  y: number;
+  tile: Tile;
+  treasury: number;
+}
 
 export class SimulationEngine {
   state: GameState;
   private rng: Rng;
   private accumulatedDays = 0;
+  private undoStack: UndoEntry[] = [];
 
   constructor(state: GameState) {
     this.state = state;
@@ -52,7 +69,7 @@ export class SimulationEngine {
 
   update(deltaMs: number) {
     const s = this.state;
-    if (s.paused || s.speed === 0) return;
+    if (s.gameOver || s.paused || s.speed === 0) return;
     const daysPerSecond = (1 / SECONDS_PER_DAY_AT_1X) * s.speed;
     this.accumulatedDays += (deltaMs / 1000) * daysPerSecond;
 
@@ -85,6 +102,12 @@ export class SimulationEngine {
     s.employmentRate = s.population > 0 ? Math.min(1, s.jobsAvailable / s.population) : 1;
 
     const foodSecurity = this.consumeFood();
+    this.stepStarvation(foodSecurity);
+    if (s.gameOver) {
+      eventBus.emit(Events.StateChanged);
+      return;
+    }
+
     const serviceCoverage = computeServiceCoverage(s.tiles, populatedTiles);
     const corruptionPenalty =
       s.election.mayor !== "player" && s.election.corruptionSiphonPerDay > 0 ? 8 : 0;
@@ -166,6 +189,40 @@ export class SimulationEngine {
       remaining -= take;
     }
     return security;
+  }
+
+  /**
+   * Direct population loss from going hungry — separate from (and on top
+   * of) the slower happiness-driven emigration. A sustained famine ends
+   * the game: an overrun town with no food plan doesn't just get sadder
+   * forever, it collapses.
+   */
+  private stepStarvation(foodSecurity: number) {
+    const s = this.state;
+    if (s.population < STARVATION_MIN_POPULATION || foodSecurity >= STARVATION_THRESHOLD) {
+      s.famineStreak = 0;
+      return;
+    }
+
+    const shortfall = STARVATION_THRESHOLD - foodSecurity; // 0..STARVATION_THRESHOLD
+    const lost = s.population * shortfall * STARVATION_POP_LOSS_RATE;
+    s.population = Math.max(0, s.population - lost);
+    s.famineStreak++;
+
+    if (s.famineStreak === 1) {
+      pushLog(s, "Food shortage — people are going hungry. Build farms, docks, or a hunting cabin.");
+    } else if (s.famineStreak % 5 === 0) {
+      pushLog(s, `Still going hungry (${s.famineStreak} days) — people are leaving or worse.`);
+    }
+
+    if (s.famineStreak >= FAMINE_COLLAPSE_DAYS) {
+      s.gameOver = true;
+      s.paused = true;
+      s.gameOverReason =
+        "River Run starved. The town grew faster than its food supply, and with no farms, docks, or hunting to feed everyone, the settlement collapsed.";
+      pushLog(s, "GAME OVER — the town starved.");
+      eventBus.emit(Events.GameOver, s.gameOverReason);
+    }
   }
 
   private stepEconomy(productionIncome: number) {
@@ -283,14 +340,26 @@ export class SimulationEngine {
     tool: ZoneType | BuildingId | "bulldoze",
   ): { ok: boolean; reason?: string } {
     const s = this.state;
+    if (s.gameOver) return { ok: false, reason: "River Run has fallen." };
     const tile = s.tiles[y]?.[x];
     if (!tile) return { ok: false, reason: "Out of bounds." };
+    const before = { ...tile }; // snapshot for undo, taken before any mutation below
 
     if (tool === "bulldoze") {
+      if (tile.zone === "none" && !tile.building) return { ok: false, reason: "Nothing here to remove." };
+      const refund = tile.building
+        ? Math.round(BUILDINGS[tile.building].cost * BULLDOZE_REFUND_FRACTION)
+        : 0;
       tile.zone = "none";
       tile.building = null;
       tile.cropType = null;
       tile.density = 0;
+      s.treasury += refund;
+      this.pushUndo(x, y, before, s.treasury - refund);
+      eventBus.emit(
+        Events.PlacementRejected,
+        refund > 0 ? `Removed — refunded $${refund}.` : "Removed.",
+      );
       eventBus.emit(Events.StateChanged);
       return { ok: true };
     }
@@ -305,6 +374,8 @@ export class SimulationEngine {
       // Fire station upgrade replaces the volunteer building in place.
       tile.building = id;
       if (tile.zone === "none") tile.zone = def.zone;
+      this.pushUndo(x, y, before, s.treasury + def.cost);
+      eventBus.emit(Events.PlacementRejected, `Built ${def.name} — $${def.cost}.`);
       eventBus.emit(Events.StateChanged);
       return { ok: true };
     }
@@ -315,12 +386,33 @@ export class SimulationEngine {
     tile.zone = zone;
     if (zone === "farmland" && !tile.cropType) tile.cropType = "wheat";
     if (zone !== "farmland") tile.cropType = null;
+    this.pushUndo(x, y, before, s.treasury);
+    eventBus.emit(Events.StateChanged);
+    return { ok: true };
+  }
+
+  private pushUndo(x: number, y: number, tile: Tile, treasuryBefore: number) {
+    this.undoStack.push({ x, y, tile, treasury: treasuryBefore });
+    if (this.undoStack.length > UNDO_STACK_LIMIT) this.undoStack.shift();
+  }
+
+  /** Reverses the single most recent placement/bulldoze, tile state and treasury alike. */
+  undo(): { ok: boolean; reason?: string } {
+    const entry = this.undoStack.pop();
+    if (!entry) return { ok: false, reason: "Nothing to undo." };
+    const s = this.state;
+    const liveTile = s.tiles[entry.y]?.[entry.x];
+    if (!liveTile) return { ok: false, reason: "Can't undo — tile no longer exists." };
+    Object.assign(liveTile, entry.tile);
+    s.treasury = entry.treasury;
+    eventBus.emit(Events.PlacementRejected, "Undid last action.");
     eventBus.emit(Events.StateChanged);
     return { ok: true };
   }
 
   campaign(): { ok: boolean; reason?: string } {
     const s = this.state;
+    if (s.gameOver) return { ok: false, reason: "River Run has fallen." };
     if (s.treasury < CAMPAIGN_COST) return { ok: false, reason: `Not enough funds (needs $${CAMPAIGN_COST}).` };
     s.treasury -= CAMPAIGN_COST;
     playerCampaign(s.election);
@@ -332,6 +424,7 @@ export class SimulationEngine {
   holdCountyFair(): { ok: boolean; reason?: string } {
     const s = this.state;
     const cost = 100;
+    if (s.gameOver) return { ok: false, reason: "River Run has fallen." };
     if (s.time.season !== "fall") return { ok: false, reason: "The county fair is a fall tradition." };
     if (s.countyFair.lastHeldYear === s.time.year) return { ok: false, reason: "Already held this year." };
     if (s.treasury < cost) return { ok: false, reason: `Not enough funds (needs $${cost}).` };
@@ -376,6 +469,7 @@ export class SimulationEngine {
     this.state = next;
     this.rng = new Rng(next.rngState);
     this.accumulatedDays = 0;
+    this.undoStack = []; // stale tile references from the old state can't be undone
     eventBus.emit(Events.GameLoaded);
     eventBus.emit(Events.StateChanged);
   }

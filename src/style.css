@@ -149,7 +149,8 @@
   white-space: nowrap;
 }
 
-.hud-menu-btn {
+.hud-menu-btn,
+.hud-undo-btn {
   flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -326,4 +327,17 @@
 .modal-btn.primary {
   background: var(--accent);
   border-color: var(--accent);
+}
+
+.modal-card--gameover {
+  border-color: var(--danger);
+}
+
+.modal-card--gameover h2 {
+  color: var(--danger);
+}
+
+.modal-card--gameover .modal-btn.primary {
+  background: var(--danger);
+  border-color: var(--danger);
 }
