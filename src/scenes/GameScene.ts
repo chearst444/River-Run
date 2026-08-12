@@ -12,17 +12,12 @@ import {
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
-import { isWaterTerrain, riverCenterX, RIVER_HALF_WIDTH, RIVERSIDE_BAND_WIDTH } from "../sim/terrain";
 import {
-  TERRAIN_COLORS,
-  TERRAIN_TEXTURE_KEY,
   TEXTURE_FILES,
   BRIDGE_TEXTURE_KEY,
-  RIVER_BACKDROP_TEXTURE_KEY,
+  MAP_BACKDROP_TEXTURE_KEY,
   ZONE_COLORS,
   CROP_COLORS,
-  GRID_LINE_COLOR,
-  GRID_LINE_ALPHA,
   HOVER_HIGHLIGHT_COLOR,
   DAMAGED_TINT,
   NO_UTILITY_DOT,
@@ -33,58 +28,10 @@ import { eventBus, Events, type ToolSelection } from "../events";
 
 const TAP_MOVE_THRESHOLD = 10; // px — beyond this, a touch is a drag/pan, not a tap
 const DRAG_ZOOM_SENSITIVITY = 1;
-// The corner-gradient blend wash sits on top of the photo tiles at partial
-// alpha — enough to soften the seam between two different photos and keep
-// the palette's terrain-type legibility, without hiding the photo texture.
-const BLEND_WASH_ALPHA = 0.4;
-
-// Lake autotiling: each lake tile's 4 corners are independently rounded
-// based on whether the two edges touching that corner are also water
-// (square, seamless) or land (rounded bank) — the standard blob-tile
-// technique, done procedurally since there's no hand-painted directional
-// tileset. A corner with land on both sides rounds hard (the outside of a
-// bulge, or a lone tile's tip); a corner with land on one side rounds
-// gently (a straight bank edge, softened instead of a hard right angle).
-// The river itself uses a different technique — see buildRiverRibbonShape
-// — since a blob-per-tile approximation of a single winding *line* still
-// reads as a staircase even with rounded corners; a lake is closer to a
-// blob region, where this per-tile approach genuinely fits.
-const LAKE_CORNER_ROUND_STRONG = 0.46; // fraction of TILE_SIZE
-const LAKE_CORNER_ROUND_MILD = 0.22;
-
-// How finely the river's true sine centerline is sampled when building its
-// clip shape — many samples per tile, so the curve reads as genuinely
-// smooth rather than a coarse polygon.
-const RIVER_RIBBON_SAMPLES_PER_TILE = 8;
-
-// The clip shape's left/right edges are each perturbed by a small amount of
-// smooth, deterministic "noise" (band-limited: a few sine octaves, not
-// per-sample randomness) so the bank line reads as an irregular natural
-// edge rather than a perfectly geometric offset curve — real riverbanks
-// aren't a constant-width line.
-const LEFT_BANK_JITTER_SEED = 0;
-const RIGHT_BANK_JITTER_SEED = 37.5;
-function bankEdgeJitter(yTiles: number, seed: number): number {
-  return (
-    Math.sin(yTiles * 0.65 + seed) * 0.15 +
-    Math.sin(yTiles * 1.9 + seed * 2.1) * 0.09 +
-    Math.sin(yTiles * 4.6 + seed * 0.6) * 0.05
-  );
-}
-
-// Outer edge of the whole river+riverside band — this is the shape the
-// single backdrop image (see drawRiverBackdrop) is clipped to, not just
-// the water's edge.
-const RIVER_BAND_HALF_WIDTH = RIVER_HALF_WIDTH + RIVERSIDE_BAND_WIDTH;
 
 export class GameScene extends Phaser.Scene {
   private engine: SimulationEngine;
   private textureLayer!: Phaser.GameObjects.Container;
-  // Geometry-mask source shapes for water tiles' rounded corners. Not part
-  // of the display list (created via `make.graphics(_, false)`), so they
-  // need their own cleanup list rather than riding along with a container.
-  private waterMaskGraphics: Phaser.GameObjects.Graphics[] = [];
-  private terrainLayer!: Phaser.GameObjects.Graphics;
   private zoneLayer!: Phaser.GameObjects.Graphics;
   private buildingLayer!: Phaser.GameObjects.Container;
   private hoverLayer!: Phaser.GameObjects.Graphics;
@@ -117,17 +64,13 @@ export class GameScene extends Phaser.Scene {
     const worldWidth = MAP_WIDTH * TILE_SIZE;
     const worldHeight = MAP_HEIGHT * TILE_SIZE;
 
-    // Textures first so everything else — the blend wash, zoning, buildings
-    // — layers on top of them in draw order.
+    // Backdrop first so zoning/buildings layer on top of it in draw order.
     this.textureLayer = this.add.container(0, 0);
-    this.terrainLayer = this.add.graphics();
     this.zoneLayer = this.add.graphics();
     this.buildingLayer = this.add.container(0, 0);
     this.hoverLayer = this.add.graphics();
 
-    this.drawTerrainTextures();
-    this.drawTerrain();
-    this.drawGridLines(worldWidth, worldHeight);
+    this.drawTerrainBackdrop();
     this.redrawDynamicLayers();
 
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
@@ -147,8 +90,6 @@ export class GameScene extends Phaser.Scene {
       this.dirty = true;
     });
     eventBus.on(Events.GameLoaded, () => {
-      this.drawTerrainTextures();
-      this.drawTerrain();
       this.dirty = true;
     });
   }
@@ -166,221 +107,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Every terrain tile gets a photo texture (see drawTerrainTextures), but
-   * two different photos butted up against each other at a hard tile edge
-   * still reads as a seam. This draws the same 4-corner color gradient as
-   * before — each corner averaged from every tile that shares it — as a
-   * partial-alpha wash on top of the photos: soft enough to still show
-   * the texture through, opaque enough to round off the seam and keep
-   * each terrain type's color identity legible at a glance.
+   * The entire map's terrain — river, banks, fields, forest, everything —
+   * is one single unmodified reference image (the user's own picture),
+   * stretched once to cover the whole map. There's no per-tile stamping
+   * and nothing is cropped or repeated. The tile grid underneath is fully
+   * functional for placement logic (zoning, roads, collision) — it's just
+   * not drawn; terrain.ts's RIVER_MASK is what keeps that invisible grid's
+   * water/land tiles lined up with where this exact picture shows the
+   * river.
    */
-  private drawTerrain() {
-    const g = this.terrainLayer;
-    g.clear();
-
-    const colorAt = (x: number, y: number): number => TERRAIN_COLORS[this.tiles[y][x].terrain];
-
-    const CORNER_OFFSETS = [
-      [-1, -1],
-      [0, -1],
-      [-1, 0],
-      [0, 0],
-    ] as const;
-    const cornerColor = (cx: number, cy: number): number => {
-      const colors: number[] = [];
-      for (const [dx, dy] of CORNER_OFFSETS) {
-        const tx = cx + dx;
-        const ty = cy + dy;
-        if (tx >= 0 && ty >= 0 && tx < MAP_WIDTH && ty < MAP_HEIGHT) colors.push(colorAt(tx, ty));
-      }
-      return averageColors(colors);
-    };
-
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const topLeft = cornerColor(x, y);
-        const topRight = cornerColor(x + 1, y);
-        const bottomLeft = cornerColor(x, y + 1);
-        const bottomRight = cornerColor(x + 1, y + 1);
-        g.fillGradientStyle(
-          topLeft,
-          topRight,
-          bottomLeft,
-          bottomRight,
-          BLEND_WASH_ALPHA,
-          BLEND_WASH_ALPHA,
-          BLEND_WASH_ALPHA,
-          BLEND_WASH_ALPHA,
-        );
-        g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-      }
-    }
-  }
-
-  /**
-   * Draws each tile's terrain as a photo texture from the user's own
-   * texture library (see palette.ts's TERRAIN_TEXTURE_KEY), scaled to
-   * fully cover the tile. Each tile gets a deterministic flip/rotation
-   * (the source photos are square and directionless, so this is safe) so
-   * the same source photo doesn't look like an identical repeated stamp
-   * across the map — cheap variety without needing real per-tile crops.
-   *
-   * Lake tiles get a per-tile autotiled bank (see drawLakeTile). The main
-   * river is handled entirely differently: 'river' and 'riverside' tiles
-   * are skipped here on purpose — instead of any per-tile stamp, the
-   * whole river gets one single unmodified backdrop image (drawRiverBackdrop),
-   * per the user's request to use their reference photo as-is rather than
-   * cropping or tiling it.
-   */
-  private drawTerrainTextures() {
+  private drawTerrainBackdrop() {
     this.textureLayer.removeAll(true);
-    this.waterMaskGraphics.forEach((g) => g.destroy());
-    this.waterMaskGraphics = [];
 
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const terrain = this.tiles[y][x].terrain;
-
-        if (terrain === "lake") {
-          this.drawLakeTile(x, y);
-          continue;
-        }
-
-        if (terrain === "river" || terrain === "riverside") continue; // covered by drawRiverBackdrop
-
-        this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY[terrain], 0);
-      }
-    }
-
-    this.drawRiverBackdrop();
-  }
-
-  /** One deterministically-varied full-tile photo stamp — see drawTerrainTextures' doc comment. */
-  private placeTextureStamp(x: number, y: number, key: string, hashSalt: number): Phaser.GameObjects.Image {
-    const hash = (x * 928371 + y * 45751 + 1 + hashSalt) >>> 0;
-    const img = this.add.image(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, key);
-    img.setDisplaySize(TILE_SIZE, TILE_SIZE);
-    img.setFlipX((hash & 1) === 1);
-    img.setFlipY(((hash >> 1) & 1) === 1);
-    img.setAngle(((hash >> 2) % 4) * 90);
+    const worldWidth = MAP_WIDTH * TILE_SIZE;
+    const worldHeight = MAP_HEIGHT * TILE_SIZE;
+    const img = this.add.image(worldWidth / 2, worldHeight / 2, MAP_BACKDROP_TEXTURE_KEY);
+    img.setDisplaySize(worldWidth, worldHeight);
     this.textureLayer.add(img);
-    return img;
-  }
-
-  /**
-   * Autotiled lake tile: a pebble-bank stamp underneath (so rounded-off
-   * corners reveal bank instead of empty space), then the water photo on
-   * top masked to a rounded rect whose 4 corner radii are computed from
-   * this tile's N/E/S/W neighbors — square where water continues into a
-   * neighbor, rounded where it meets land. See the LAKE_CORNER_ROUND_*
-   * constants' doc comment for the rule (and why the river uses a
-   * different technique).
-   */
-  private drawLakeTile(x: number, y: number) {
-    this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.riverside, 7919); // bank base
-    const waterImg = this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 0);
-
-    const isWaterAt = (nx: number, ny: number): boolean => {
-      const t = this.tiles[ny]?.[nx];
-      return t ? isWaterTerrain(t.terrain) : false; // map edge counts as a bank
-    };
-    const north = isWaterAt(x, y - 1);
-    const south = isWaterAt(x, y + 1);
-    const west = isWaterAt(x - 1, y);
-    const east = isWaterAt(x + 1, y);
-
-    const cornerRadius = (edgeA: boolean, edgeB: boolean): number => {
-      if (edgeA && edgeB) return 0;
-      if (!edgeA && !edgeB) return TILE_SIZE * LAKE_CORNER_ROUND_STRONG;
-      return TILE_SIZE * LAKE_CORNER_ROUND_MILD;
-    };
-    const radii = {
-      tl: cornerRadius(north, west),
-      tr: cornerRadius(north, east),
-      bl: cornerRadius(south, west),
-      br: cornerRadius(south, east),
-    };
-
-    const maskShape = this.make.graphics(undefined, false);
-    maskShape.fillStyle(0xffffff);
-    maskShape.fillRoundedRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, radii);
-    this.waterMaskGraphics.push(maskShape);
-    waterImg.setMask(maskShape.createGeometryMask());
-  }
-
-  /**
-   * The main river, rendered as a single unmodified image rather than any
-   * per-tile stamp — the user's own AI-generated reference photo, used
-   * "as is" (not cropped into pieces, not tiled/repeated). It's scaled to
-   * cover the bounding box of the river's true curving path (river width +
-   * riverside band, across the whole map height) and clipped to that
-   * shape (buildRiverBandShape) so it doesn't spill onto the surrounding
-   * grass/hillside photos — but the image's own content isn't aligned to
-   * any particular tile or section; it's one continuous backdrop guessed
-   * into place, exactly as asked for.
-   */
-  private drawRiverBackdrop() {
-    const { left: leftPts, right: rightPts } = this.computeRiverBandPoints();
-
-    let minX = Infinity;
-    let maxX = -Infinity;
-    for (const p of [...leftPts, ...rightPts]) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-    }
-    // A little extra padding beyond the jittered edges themselves so the
-    // image's display rect always fully contains the clip shape, even at
-    // its widest wiggle — otherwise the mask would reveal bare canvas at
-    // the edges instead of image content.
-    const padPx = TILE_SIZE * 0.5;
-    const left = minX - padPx;
-    const right = maxX + padPx;
-    const top = 0;
-    const bottom = MAP_HEIGHT * TILE_SIZE;
-
-    const g = this.make.graphics(undefined, false);
-    g.fillStyle(0xffffff);
-    g.fillPoints([...leftPts, ...rightPts.slice().reverse()], true);
-
-    const img = this.add.image((left + right) / 2, (top + bottom) / 2, RIVER_BACKDROP_TEXTURE_KEY);
-    img.setDisplaySize(right - left, bottom - top);
-    this.textureLayer.add(img);
-
-    this.waterMaskGraphics.push(g);
-    img.setMask(g.createGeometryMask());
-  }
-
-  /** The outer edge of the river+riverside band, in world pixels — see RIVER_BAND_HALF_WIDTH. */
-  private computeRiverBandPoints(): {
-    left: { x: number; y: number }[];
-    right: { x: number; y: number }[];
-  } {
-    const totalSamples = MAP_HEIGHT * RIVER_RIBBON_SAMPLES_PER_TILE;
-    const left: { x: number; y: number }[] = [];
-    const right: { x: number; y: number }[] = [];
-
-    for (let i = 0; i <= totalSamples; i++) {
-      const yTiles = (i / totalSamples) * MAP_HEIGHT;
-      const cx = riverCenterX(yTiles);
-      const py = yTiles * TILE_SIZE;
-      const leftX = cx - RIVER_BAND_HALF_WIDTH + bankEdgeJitter(yTiles, LEFT_BANK_JITTER_SEED) * 1.6;
-      const rightX = cx + RIVER_BAND_HALF_WIDTH + bankEdgeJitter(yTiles, RIGHT_BANK_JITTER_SEED) * 1.6;
-      left.push({ x: leftX * TILE_SIZE, y: py });
-      right.push({ x: rightX * TILE_SIZE, y: py });
-    }
-
-    return { left, right };
-  }
-
-  private drawGridLines(worldWidth: number, worldHeight: number) {
-    const g = this.add.graphics();
-    g.lineStyle(1, GRID_LINE_COLOR, GRID_LINE_ALPHA);
-    for (let x = 0; x <= MAP_WIDTH; x++) {
-      g.lineBetween(x * TILE_SIZE, 0, x * TILE_SIZE, worldHeight);
-    }
-    for (let y = 0; y <= MAP_HEIGHT; y++) {
-      g.lineBetween(0, y * TILE_SIZE, worldWidth, y * TILE_SIZE);
-    }
   }
 
   private redrawDynamicLayers() {
@@ -612,18 +355,4 @@ export class GameScene extends Phaser.Scene {
       this.engine.setCropType(tx, ty, this.selectedCrop);
     }
   }
-}
-
-/** Channel-wise average of a set of 0xRRGGBB colors, used for terrain-edge blending. */
-function averageColors(colors: number[]): number {
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  for (const c of colors) {
-    r += (c >> 16) & 0xff;
-    g += (c >> 8) & 0xff;
-    b += c & 0xff;
-  }
-  const n = colors.length;
-  return ((Math.round(r / n) << 16) | (Math.round(g / n) << 8) | Math.round(b / n)) >>> 0;
 }

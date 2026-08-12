@@ -62,62 +62,29 @@ flags balancing as a later pass once the systems are all in place, which they no
   (48×48 → 24×24) so the map covers the same total area with fewer, chunkier cells.
   Terrain-generation proportions (river width, mountain fringe, etc.) were rescaled to
   match.
-- **Visual polish** — every terrain tile now renders a real photo texture
-  (`public/textures/`, pulled from the user's own texture library): `water.jpg` for
-  river/lake, `pebble.jpg` for riverside, `grass.jpg` for lowland, `straw.jpg` for
-  hillside, `stone.jpg` for mountain, `leaves.jpg` for forest. Each tile gets a
-  deterministic flip/rotation so the same photo doesn't look like an obviously
-  repeated stamp. The original procedural 4-corner color gradient is kept as a
-  partial-alpha wash on top — it softens the seam between two different photos and
-  keeps each terrain type's color identity readable at a glance. Buildings render as
-  a consistent colored badge + monogram (e.g. "PWR", "H2O", "SCH") instead of a mix
-  of differently-styled emoji.
-- **River/lake autotiling** — water tiles no longer render as flat squares. The
-  **lake** uses per-tile blob-tiling: each tile's 4 corners are independently rounded
-  based on its N/E/S/W neighbors — square where water continues, rounded where it
-  meets land — a reasonable fit for a roughly circular body of water.
-  The **river** goes further: rather than approximating the curve one tile-blob at a
-  time (which still read as a staircase even with rounded corners), its water is
-  rendered as one continuous ribbon shape sampled directly from the river's true
-  sine-generated centerline (`sim/terrain.ts`'s `riverCenterX`) at 8 points per tile —
-  a spline-smoothing pass on the river specifically, independent of the coarse
-  gameplay grid that 'river'-vs-'riverside' terrain assignment still uses for
-  placement rules. The centerline itself is tuned to one clean sine cycle (a proper
-  S-curve, not a busier multi-wiggle meander). A pebble-bank photo sits underneath
-  every water tile either way, so the rounded/curved-off areas reveal bank texture
-  instead of empty space. All done procedurally (Phaser `fillRoundedRect` /
-  `fillPoints` + `GeometryMask`) since there's no hand-painted directional river
-  tileset.
-- **Organic river texture** — three refinements on top of the ribbon, all sampled
-  from the same continuous centerline so nothing reintroduces the staircase:
-  - The ribbon's left/right edges are each perturbed by smooth, deterministic
-    band-limited noise (a few sine octaves, independent per side) instead of being a
-    perfectly geometric offset curve — the water/bank border now reads as an
-    irregular natural edge.
-  - Small rock and moss/plant clumps (procedural two-tone ellipses and blobs) are
-    scattered across every riverside tile, deliberately unmasked so they sit on top
-    of both bank and water — texture variation instead of a uniform gravel strip,
-    and they help blur the boundary further.
-  - The water itself gets a depth-shading overlay — a darker wandering band, a
-    lighter shimmer band, and scattered bright glints — clipped to the same ribbon
-    mask as the water photos, so it no longer reads as one flat color.
-- **The main river is one single, unmodified reference image** — after trying a
-  cropped/seamlessly-tiled version of the user's AI-generated river photo, the
-  user asked for something simpler and more literal: use their reference image
-  whole, "as is," as a single backdrop — not cropped into pieces, not tiled or
-  repeated anywhere. `river_valley.jpg` (the full reference image, resized down
-  from 2400×2400 to 1600×1600 for file size only — no cropping) is placed as one
-  `Image` game object, scaled to cover the bounding box of the river's true
-  curving path (`drawRiverBackdrop` in `GameScene`) and clipped to that same
-  path (river width + riverside band, jittered edges and all) so it doesn't spill
-  onto the surrounding grass/hillside photos. The image's own content — where the
-  bridge, rocks, and current happen to fall — isn't aligned to any particular
-  tile; it's placed by the river's geometry only, exactly as asked ("the user
-  doesn't have to see where the sections are"). `river_water.jpg`/`river_bank.jpg`
-  (the earlier cropped/tiled textures) are kept and still used for the separate
-  inland **lake**, which is unaffected by this change. The extracted
-  `river_bridge.jpg` sprite is also unaffected — it's a discrete building icon for
-  player-built covered bridges, not a terrain fill.
+- **Visual polish, take 1–4 (superseded)** — terrain went through several rendering
+  approaches on the way here: per-tile photo stamps from a general texture library,
+  procedural blob-tile/ribbon autotiling for the river's water, then a cropped and
+  seamlessly-tiled version of the user's own AI-generated reference photo for just
+  the river's water/bank. Each was a real step, but the user ultimately asked for
+  something simpler and more literal than any of them — see below.
+- **The whole map is one single, unmodified reference image** — the final approach,
+  and the one currently in the game. `river_valley.jpg` (the user's own reference
+  photo, resized 2400×2400 → 1600×1600 for file size only — no cropping, no
+  tiling) is placed as one `Image` game object stretched once across the entire
+  map (`drawTerrainBackdrop` in `GameScene`). There's no more per-terrain-type photo
+  stamping at all — river, banks, fields, and forest are all just part of this one
+  picture. The tile grid itself is now invisible (no grid lines) but still fully
+  functional underneath for zoning/roads/collision — see `sim/terrain.ts`'s
+  `RIVER_MASK`, a 24×24 trace of the picture's actual river (found by
+  color-thresholding its water pixels, including where it forks around a mid-stream
+  rock island — something the earlier sine-curve formula could never represent),
+  which is what keeps the invisible grid's water/unbuildable tiles lined up with
+  where the picture actually shows water. Everything else (the hillside/mountain/
+  forest fringe near the map's outer edges) still uses the original distance-based
+  rule; there's no separate lake anymore since the reference image doesn't show one.
+  The extracted `river_bridge.jpg` sprite is unaffected — it's a discrete building
+  icon for player-built covered bridges, not a terrain fill.
 
 ## Tech Stack
 

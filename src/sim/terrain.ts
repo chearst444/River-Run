@@ -3,11 +3,16 @@
  * Pure simulation logic — no Phaser imports — so it can be unit tested
  * and tuned independently of rendering.
  *
- * Shape: a main river runs roughly north-south with a gentle meander,
- * flanked by low riverside ground, rising through hillside terrain to a
- * mountain/forest edge on both far sides. A smaller inland lake sits away
- * from the river so farms on the far side of the map still have water
- * access.
+ * The river's shape is no longer procedural: the whole map now renders as
+ * one single background image (the user's reference photo — see
+ * GameScene's drawTerrainBackdrop / palette.ts's MAP_BACKDROP_TEXTURE_KEY),
+ * so the *gameplay* grid's water tiles have to line up with where that
+ * picture actually shows water, not a formula. RIVER_MASK below is that
+ * picture's river traced onto the map's 24x24 grid (see docs/river-mask.md
+ * for how it was derived) — it even captures the river forking around a
+ * mid-stream rock island, which a single centerline curve never could.
+ * Everything else (the hillside/mountain/forest fringe near the map edges)
+ * still uses the original distance-based rule.
  */
 
 import {
@@ -37,59 +42,63 @@ export interface GenerateOptions {
 }
 
 /**
- * The river's centerline: a sine-generated meander (the standard
- * geomorphological model for a real river curve), expressed continuously
- * so it can be sampled at any y — not just integer rows — for both
- * terrain generation (which tile is "river") and, separately, smooth
- * rendering (see GameScene's river ribbon, which samples this same
- * function at a much finer resolution than one point per tile).
- *
- * amplitudeFraction/cycles are exposed (not just inlined constants) so
- * alternate curve shapes are a one-line change — useful for previewing a
- * few path options.
+ * '#' = river/water tile, '.' = land — one row per map row, traced from
+ * the reference image by color-thresholding its water pixels (bright
+ * cyan/turquoise vs. the greens/browns/yellows everywhere else), then
+ * downsampling to the map's 24x24 tile grid. Sized for the current
+ * MAP_WIDTH x MAP_HEIGHT (24x24); if the map's dimensions ever change this
+ * needs retracing against the image at the new resolution.
  */
-export interface RiverCurveConfig {
-  amplitudeFraction: number; // swing from center, as a fraction of MAP_WIDTH
-  cycles: number; // number of full sine periods across the map's height (1 = one clean S)
-  phase: number;
+const RIVER_MASK: readonly string[] = [
+  ".............#..........",
+  ".............#..........",
+  ".............##.........",
+  ".............#..........",
+  "..............##........",
+  "..............##........",
+  ".............###........",
+  "............###.........",
+  "............#...........",
+  "............#...........",
+  "............#...........",
+  "...........#............",
+  "..........#.#...........",
+  ".........####...........",
+  ".........#####..........",
+  ".......##....##.........",
+  ".......#.....##.........",
+  "......##......##........",
+  "......##.......#........",
+  ".......#.......##.......",
+  ".......#........###.....",
+  "......#...........##....",
+  ".....##............#....",
+  "....##..............#...",
+];
+
+function isRiverTile(x: number, y: number): boolean {
+  return RIVER_MASK[y]?.[x] === "#";
 }
 
-export const DEFAULT_RIVER_CURVE: RiverCurveConfig = {
-  amplitudeFraction: 0.15,
-  cycles: 1,
-  phase: 0,
-};
-
-export function riverCenterX(y: number, config: RiverCurveConfig = DEFAULT_RIVER_CURVE): number {
-  const t = y / MAP_HEIGHT;
-  return (
-    MAP_WIDTH * 0.5 +
-    Math.sin(t * Math.PI * 2 * config.cycles + config.phase) * (MAP_WIDTH * config.amplitudeFraction)
-  );
+/** Any of the 8 neighbors is river, but this tile itself isn't — the bank. */
+function isRiversideTile(x: number, y: number): boolean {
+  if (isRiverTile(x, y)) return false;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      if (isRiverTile(x + dx, y + dy)) return true;
+    }
+  }
+  return false;
 }
-
-// Tile-unit geometry below is scaled to the map's current resolution
-// (halved alongside MAP_WIDTH/MAP_HEIGHT when tiles doubled in size) so
-// the river/lake/mountain proportions stay the same real-world shape.
-export const RIVER_HALF_WIDTH = 0.8;
-export const RIVERSIDE_BAND_WIDTH = 1.25; // extra width beyond RIVER_HALF_WIDTH that's "riverside" terrain
 
 export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
   const rand = mulberry32(opts.seed ?? 1337);
   const tiles: Tile[][] = [];
-  const riverHalfWidth = RIVER_HALF_WIDTH;
-
-  // Inland lake: a roughly circular patch away from the river, biased
-  // toward the far side of the map.
-  const lakeCenter = { x: MAP_WIDTH * 0.82, y: MAP_HEIGHT * 0.62 };
-  const lakeRadius = 1.6;
 
   for (let y = 0; y < MAP_HEIGHT; y++) {
     const row: Tile[] = [];
-    const cx = riverCenterX(y);
     for (let x = 0; x < MAP_WIDTH; x++) {
-      const distToRiver = Math.abs(x - cx);
-      const distToLake = Math.hypot(x - lakeCenter.x, y - lakeCenter.y);
       // Distance to nearest map edge (left/right) — drives the
       // hillside -> mountain progression on both flanks.
       const distToEdge = Math.min(x, MAP_WIDTH - 1 - x);
@@ -97,13 +106,10 @@ export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
       let terrain: TerrainType;
       let elevation: number;
 
-      if (distToRiver < riverHalfWidth) {
+      if (isRiverTile(x, y)) {
         terrain = "river";
         elevation = 0;
-      } else if (distToLake < lakeRadius) {
-        terrain = "lake";
-        elevation = 0;
-      } else if (distToRiver < riverHalfWidth + RIVERSIDE_BAND_WIDTH) {
+      } else if (isRiversideTile(x, y)) {
         terrain = "riverside";
         elevation = 1;
       } else if (distToEdge < 2) {

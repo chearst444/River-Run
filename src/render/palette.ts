@@ -1,59 +1,23 @@
-import type { BuildingId, CropId, TerrainType, ZoneType } from "../config/grid";
+import type { BuildingId, CropId, ZoneType } from "../config/grid";
 import type { BuildingCategory } from "../sim/buildings";
-
-export const TERRAIN_COLORS: Record<TerrainType, number> = {
-  river: 0x3a7ca5,
-  lake: 0x4a8fc0,
-  riverside: 0x9db27a,
-  lowland: 0x7fa65a,
-  hillside: 0x8c9a5b,
-  mountain: 0x8a8378,
-  forest: 0x4f7a3d,
-};
-
-/**
- * Photo textures mapped onto each terrain type. Lake still uses the
- * cropped/seamless-tiled water+bank photos (see docs/river-textures.md) —
- * those remain a good fit for a small, roughly circular body of water
- * that's tiled per-tile.
- *
- * The main river is handled differently (see GameScene's drawRiverBackdrop):
- * the user asked for their reference image to be used whole, as one single
- * static backdrop, not cropped/tiled — so 'river' and 'riverside' tiles
- * are skipped in the per-tile stamping loop entirely. TERRAIN_TEXTURE_KEY
- * still needs entries for them because drawLakeTile reuses the same two
- * texture keys as its water/bank stamps.
- */
-export const TERRAIN_TEXTURE_KEY: Record<TerrainType, string> = {
-  river: "tex-river-water",
-  lake: "tex-river-water",
-  riverside: "tex-river-bank",
-  lowland: "tex-grass",
-  hillside: "tex-straw",
-  mountain: "tex-stone",
-  forest: "tex-leaves",
-};
 
 /** The extracted bridge photo — a discrete sprite (see drawBuildingBadge's covered_bridge case), not a repeating fill. */
 export const BRIDGE_TEXTURE_KEY = "tex-river-bridge";
 
 /**
- * The user's full AI-generated reference image, used unmodified (not
- * cropped, not tiled) as a single backdrop stretched over the river's
- * true path — see GameScene's drawRiverBackdrop.
+ * The user's full reference image, used unmodified (not cropped, not
+ * tiled) as the single backdrop for the *entire* map — see GameScene's
+ * drawTerrainBackdrop. Every terrain type (river, banks, fields, forest)
+ * is part of this one picture now; there's no more per-terrain-type photo
+ * stamping (see terrain.ts's RIVER_MASK for how the gameplay grid's
+ * water/land tiles were aligned to it).
  */
-export const RIVER_BACKDROP_TEXTURE_KEY = "tex-river-backdrop";
+export const MAP_BACKDROP_TEXTURE_KEY = "tex-map-backdrop";
 
 /** Files served from /public/textures. */
 export const TEXTURE_FILES: Record<string, string> = {
-  "tex-river-water": "/textures/river_water.jpg",
-  "tex-river-bank": "/textures/river_bank.jpg",
   [BRIDGE_TEXTURE_KEY]: "/textures/river_bridge.jpg",
-  [RIVER_BACKDROP_TEXTURE_KEY]: "/textures/river_valley.jpg",
-  "tex-grass": "/textures/grass.jpg",
-  "tex-straw": "/textures/straw.jpg",
-  "tex-stone": "/textures/stone.jpg",
-  "tex-leaves": "/textures/leaves.jpg",
+  [MAP_BACKDROP_TEXTURE_KEY]: "/textures/river_valley.jpg",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
@@ -66,8 +30,6 @@ export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
 };
 
 export const INVALID_PLACEMENT_TINT = 0xff4444;
-export const GRID_LINE_COLOR = 0x000000;
-export const GRID_LINE_ALPHA = 0.08;
 export const HOVER_HIGHLIGHT_COLOR = 0xffffff;
 export const DAMAGED_TINT = 0xff2222;
 export const NO_UTILITY_DOT = 0xff8800;
