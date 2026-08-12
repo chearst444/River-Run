@@ -11,6 +11,32 @@ export const TERRAIN_COLORS: Record<TerrainType, number> = {
   forest: 0x4f7a3d,
 };
 
+/**
+ * Photo textures (from the user's own texture library) mapped onto each
+ * terrain type. River and lake share one water photo — tinted apart by
+ * the TERRAIN_COLORS blend wash in GameScene, same as every other
+ * terrain-to-terrain seam.
+ */
+export const TERRAIN_TEXTURE_KEY: Record<TerrainType, string> = {
+  river: "tex-water",
+  lake: "tex-water",
+  riverside: "tex-pebble",
+  lowland: "tex-grass",
+  hillside: "tex-straw",
+  mountain: "tex-stone",
+  forest: "tex-leaves",
+};
+
+/** File served from /public/textures — one fetch per unique key even though river+lake share it. */
+export const TEXTURE_FILES: Record<string, string> = {
+  "tex-water": "/textures/water.jpg",
+  "tex-pebble": "/textures/pebble.jpg",
+  "tex-grass": "/textures/grass.jpg",
+  "tex-straw": "/textures/straw.jpg",
+  "tex-stone": "/textures/stone.jpg",
+  "tex-leaves": "/textures/leaves.jpg",
+};
+
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
   road: 0x4a4a4a,
   residential: 0x5b8fd6,

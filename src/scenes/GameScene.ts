@@ -14,6 +14,8 @@ import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
 import {
   TERRAIN_COLORS,
+  TERRAIN_TEXTURE_KEY,
+  TEXTURE_FILES,
   ZONE_COLORS,
   CROP_COLORS,
   GRID_LINE_COLOR,
@@ -28,9 +30,14 @@ import { eventBus, Events, type ToolSelection } from "../events";
 
 const TAP_MOVE_THRESHOLD = 10; // px — beyond this, a touch is a drag/pan, not a tap
 const DRAG_ZOOM_SENSITIVITY = 1;
+// The corner-gradient blend wash sits on top of the photo tiles at partial
+// alpha — enough to soften the seam between two different photos and keep
+// the palette's terrain-type legibility, without hiding the photo texture.
+const BLEND_WASH_ALPHA = 0.4;
 
 export class GameScene extends Phaser.Scene {
   private engine: SimulationEngine;
+  private textureLayer!: Phaser.GameObjects.Container;
   private terrainLayer!: Phaser.GameObjects.Graphics;
   private zoneLayer!: Phaser.GameObjects.Graphics;
   private buildingLayer!: Phaser.GameObjects.Container;
@@ -54,15 +61,25 @@ export class GameScene extends Phaser.Scene {
     this.engine = engine;
   }
 
+  preload() {
+    for (const [key, url] of Object.entries(TEXTURE_FILES)) {
+      this.load.image(key, url);
+    }
+  }
+
   create() {
     const worldWidth = MAP_WIDTH * TILE_SIZE;
     const worldHeight = MAP_HEIGHT * TILE_SIZE;
 
+    // Textures first so everything else — the blend wash, zoning, buildings
+    // — layers on top of them in draw order.
+    this.textureLayer = this.add.container(0, 0);
     this.terrainLayer = this.add.graphics();
     this.zoneLayer = this.add.graphics();
     this.buildingLayer = this.add.container(0, 0);
     this.hoverLayer = this.add.graphics();
 
+    this.drawTerrainTextures();
     this.drawTerrain();
     this.drawGridLines(worldWidth, worldHeight);
     this.redrawDynamicLayers();
@@ -84,6 +101,7 @@ export class GameScene extends Phaser.Scene {
       this.dirty = true;
     });
     eventBus.on(Events.GameLoaded, () => {
+      this.drawTerrainTextures();
       this.drawTerrain();
       this.dirty = true;
     });
@@ -102,11 +120,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Terrain is drawn as a 4-corner gradient per tile rather than a flat
-   * fill: each corner's color is the average of every tile that shares
-   * it, so grass/water/hillside/farmland edges blend smoothly into one
-   * another instead of snapping at the tile boundary. One draw call per
-   * tile, computed once at load (and again after a save load).
+   * Every terrain tile gets a photo texture (see drawTerrainTextures), but
+   * two different photos butted up against each other at a hard tile edge
+   * still reads as a seam. This draws the same 4-corner color gradient as
+   * before — each corner averaged from every tile that shares it — as a
+   * partial-alpha wash on top of the photos: soft enough to still show
+   * the texture through, opaque enough to round off the seam and keep
+   * each terrain type's color identity legible at a glance.
    */
   private drawTerrain() {
     const g = this.terrainLayer;
@@ -136,8 +156,47 @@ export class GameScene extends Phaser.Scene {
         const topRight = cornerColor(x + 1, y);
         const bottomLeft = cornerColor(x, y + 1);
         const bottomRight = cornerColor(x + 1, y + 1);
-        g.fillGradientStyle(topLeft, topRight, bottomLeft, bottomRight, 1, 1, 1, 1);
+        g.fillGradientStyle(
+          topLeft,
+          topRight,
+          bottomLeft,
+          bottomRight,
+          BLEND_WASH_ALPHA,
+          BLEND_WASH_ALPHA,
+          BLEND_WASH_ALPHA,
+          BLEND_WASH_ALPHA,
+        );
         g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
+  }
+
+  /**
+   * Draws each tile's terrain as a photo texture from the user's own
+   * texture library (see palette.ts's TERRAIN_TEXTURE_KEY), scaled to
+   * fully cover the tile. Each tile gets a deterministic flip/rotation
+   * (the source photos are square and directionless, so this is safe) so
+   * the same source photo doesn't look like an identical repeated stamp
+   * across the map — cheap variety without needing real per-tile crops.
+   */
+  private drawTerrainTextures() {
+    this.textureLayer.removeAll(true);
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const key = TERRAIN_TEXTURE_KEY[this.tiles[y][x].terrain];
+        const hash = (x * 928371 + y * 45751 + 1) >>> 0;
+
+        const img = this.add.image(
+          x * TILE_SIZE + TILE_SIZE / 2,
+          y * TILE_SIZE + TILE_SIZE / 2,
+          key,
+        );
+        img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+        img.setFlipX((hash & 1) === 1);
+        img.setFlipY(((hash >> 1) & 1) === 1);
+        img.setAngle(((hash >> 2) % 4) * 90);
+        this.textureLayer.add(img);
       }
     }
   }

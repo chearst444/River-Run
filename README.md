@@ -62,13 +62,16 @@ flags balancing as a later pass once the systems are all in place, which they no
   (48×48 → 24×24) so the map covers the same total area with fewer, chunkier cells.
   Terrain-generation proportions (river width, mountain fringe, etc.) were rescaled to
   match.
-- **Visual polish** — terrain now blends smoothly at grass/water/hillside edges via a
-  4-corner gradient fill per tile (procedural, no external art) instead of flat
-  blocky tiles; every building renders as a consistent colored badge + monogram
-  (e.g. "PWR", "H2O", "SCH") instead of a mix of differently-styled emoji.
-  **Not done yet:** importing custom terrain textures from an external repo — the
-  request referenced a link that wasn't included. Send the actual repo/folder URL and
-  they can be wired in.
+- **Visual polish** — every terrain tile now renders a real photo texture
+  (`public/textures/`, pulled from the user's own texture library): `water.jpg` for
+  river/lake, `pebble.jpg` for riverside, `grass.jpg` for lowland, `straw.jpg` for
+  hillside, `stone.jpg` for mountain, `leaves.jpg` for forest. Each tile gets a
+  deterministic flip/rotation so the same photo doesn't look like an obviously
+  repeated stamp. The original procedural 4-corner color gradient is kept as a
+  partial-alpha wash on top — it softens the seam between two different photos and
+  keeps each terrain type's color identity readable at a glance. Buildings render as
+  a consistent colored badge + monogram (e.g. "PWR", "H2O", "SCH") instead of a mix
+  of differently-styled emoji.
 
 ## Tech Stack
 
