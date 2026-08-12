@@ -88,6 +88,19 @@ flags balancing as a later pass once the systems are all in place, which they no
   instead of empty space. All done procedurally (Phaser `fillRoundedRect` /
   `fillPoints` + `GeometryMask`) since there's no hand-painted directional river
   tileset.
+- **Organic river texture** — three refinements on top of the ribbon, all sampled
+  from the same continuous centerline so nothing reintroduces the staircase:
+  - The ribbon's left/right edges are each perturbed by smooth, deterministic
+    band-limited noise (a few sine octaves, independent per side) instead of being a
+    perfectly geometric offset curve — the water/bank border now reads as an
+    irregular natural edge.
+  - Small rock and moss/plant clumps (procedural two-tone ellipses and blobs) are
+    scattered across every riverside tile, deliberately unmasked so they sit on top
+    of both bank and water — texture variation instead of a uniform gravel strip,
+    and they help blur the boundary further.
+  - The water itself gets a depth-shading overlay — a darker wandering band, a
+    lighter shimmer band, and scattered bright glints — clipped to the same ribbon
+    mask as the water photos, so it no longer reads as one flat color.
 
 ## Tech Stack
 
