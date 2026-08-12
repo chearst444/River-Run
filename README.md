@@ -72,15 +72,22 @@ flags balancing as a later pass once the systems are all in place, which they no
   keeps each terrain type's color identity readable at a glance. Buildings render as
   a consistent colored badge + monogram (e.g. "PWR", "H2O", "SCH") instead of a mix
   of differently-styled emoji.
-- **River autotiling** — river/lake tiles no longer render as flat squares. Each water
-  tile's four corners are independently rounded based on its N/E/S/W neighbors (the
-  standard blob-tile technique): square where water continues into a neighboring water
-  tile, gently rounded where it meets a straight bank, and rounded harder where land is
-  on both adjacent sides (a bend's outside edge, or a lone tile's tip). A pebble-bank
-  photo sits underneath every water tile so the rounded-off corners reveal bank
-  texture instead of empty space. Done procedurally (Phaser `fillRoundedRect` +
-  `GeometryMask` per water tile) since there's no hand-painted directional river
-  tileset — no separate finer sub-grid needed for the curve to read smoothly.
+- **River/lake autotiling** — water tiles no longer render as flat squares. The
+  **lake** uses per-tile blob-tiling: each tile's 4 corners are independently rounded
+  based on its N/E/S/W neighbors — square where water continues, rounded where it
+  meets land — a reasonable fit for a roughly circular body of water.
+  The **river** goes further: rather than approximating the curve one tile-blob at a
+  time (which still read as a staircase even with rounded corners), its water is
+  rendered as one continuous ribbon shape sampled directly from the river's true
+  sine-generated centerline (`sim/terrain.ts`'s `riverCenterX`) at 8 points per tile —
+  a spline-smoothing pass on the river specifically, independent of the coarse
+  gameplay grid that 'river'-vs-'riverside' terrain assignment still uses for
+  placement rules. The centerline itself is tuned to one clean sine cycle (a proper
+  S-curve, not a busier multi-wiggle meander). A pebble-bank photo sits underneath
+  every water tile either way, so the rounded/curved-off areas reveal bank texture
+  instead of empty space. All done procedurally (Phaser `fillRoundedRect` /
+  `fillPoints` + `GeometryMask`) since there's no hand-painted directional river
+  tileset.
 
 ## Tech Stack
 

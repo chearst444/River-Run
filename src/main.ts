@@ -32,12 +32,13 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [gameScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
 
 new HUD(appEl, engine);
 new Toolbar(appEl);
 new ModalController(appEl, engine);
 
-// Dev/debug hook — lets the browser console (or automated smoke tests)
-// inspect and drive the sim directly. Harmless in production.
-(window as unknown as { __engine: SimulationEngine }).__engine = engine;
+// Dev/debug hooks — let the browser console (or automated smoke tests)
+// inspect and drive the sim/camera directly. Harmless in production.
+(window as unknown as { __engine: SimulationEngine; __game: Phaser.Game }).__engine = engine;
+(window as unknown as { __engine: SimulationEngine; __game: Phaser.Game }).__game = game;

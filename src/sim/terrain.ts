@@ -36,19 +36,48 @@ export interface GenerateOptions {
   seed?: number;
 }
 
+/**
+ * The river's centerline: a sine-generated meander (the standard
+ * geomorphological model for a real river curve), expressed continuously
+ * so it can be sampled at any y — not just integer rows — for both
+ * terrain generation (which tile is "river") and, separately, smooth
+ * rendering (see GameScene's river ribbon, which samples this same
+ * function at a much finer resolution than one point per tile).
+ *
+ * amplitudeFraction/cycles are exposed (not just inlined constants) so
+ * alternate curve shapes are a one-line change — useful for previewing a
+ * few path options.
+ */
+export interface RiverCurveConfig {
+  amplitudeFraction: number; // swing from center, as a fraction of MAP_WIDTH
+  cycles: number; // number of full sine periods across the map's height (1 = one clean S)
+  phase: number;
+}
+
+export const DEFAULT_RIVER_CURVE: RiverCurveConfig = {
+  amplitudeFraction: 0.15,
+  cycles: 1,
+  phase: 0,
+};
+
+export function riverCenterX(y: number, config: RiverCurveConfig = DEFAULT_RIVER_CURVE): number {
+  const t = y / MAP_HEIGHT;
+  return (
+    MAP_WIDTH * 0.5 +
+    Math.sin(t * Math.PI * 2 * config.cycles + config.phase) * (MAP_WIDTH * config.amplitudeFraction)
+  );
+}
+
+// Tile-unit geometry below is scaled to the map's current resolution
+// (halved alongside MAP_WIDTH/MAP_HEIGHT when tiles doubled in size) so
+// the river/lake/mountain proportions stay the same real-world shape.
+export const RIVER_HALF_WIDTH = 0.8;
+export const RIVERSIDE_BAND_WIDTH = 1.25; // extra width beyond RIVER_HALF_WIDTH that's "riverside" terrain
+
 export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
   const rand = mulberry32(opts.seed ?? 1337);
   const tiles: Tile[][] = [];
-
-  // River centerline meanders gently across x as y increases.
-  const riverCenterX = (y: number) => {
-    const t = y / MAP_HEIGHT;
-    return MAP_WIDTH * 0.5 + Math.sin(t * Math.PI * 2.2) * (MAP_WIDTH * 0.12);
-  };
-  // Tile-unit geometry below is scaled to the map's current resolution
-  // (halved alongside MAP_WIDTH/MAP_HEIGHT when tiles doubled in size) so
-  // the river/lake/mountain proportions stay the same real-world shape.
-  const riverHalfWidth = 0.8;
+  const riverHalfWidth = RIVER_HALF_WIDTH;
 
   // Inland lake: a roughly circular patch away from the river, biased
   // toward the far side of the map.
@@ -74,7 +103,7 @@ export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
       } else if (distToLake < lakeRadius) {
         terrain = "lake";
         elevation = 0;
-      } else if (distToRiver < riverHalfWidth + 1.25) {
+      } else if (distToRiver < riverHalfWidth + RIVERSIDE_BAND_WIDTH) {
         terrain = "riverside";
         elevation = 1;
       } else if (distToEdge < 2) {

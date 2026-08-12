@@ -12,7 +12,7 @@ import {
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
-import { isWaterTerrain } from "../sim/terrain";
+import { isWaterTerrain, riverCenterX, RIVER_HALF_WIDTH } from "../sim/terrain";
 import {
   TERRAIN_COLORS,
   TERRAIN_TEXTURE_KEY,
@@ -36,15 +36,24 @@ const DRAG_ZOOM_SENSITIVITY = 1;
 // the palette's terrain-type legibility, without hiding the photo texture.
 const BLEND_WASH_ALPHA = 0.4;
 
-// River/lake autotiling: each water tile's 4 corners are independently
-// rounded based on whether the two edges touching that corner are also
-// water (square, seamless) or land (rounded bank) — the standard blob-tile
+// Lake autotiling: each lake tile's 4 corners are independently rounded
+// based on whether the two edges touching that corner are also water
+// (square, seamless) or land (rounded bank) — the standard blob-tile
 // technique, done procedurally since there's no hand-painted directional
-// river tileset. A corner with land on both sides rounds hard (the outside
-// of a bend, or a lone tile's tip); a corner with land on one side rounds
+// tileset. A corner with land on both sides rounds hard (the outside of a
+// bulge, or a lone tile's tip); a corner with land on one side rounds
 // gently (a straight bank edge, softened instead of a hard right angle).
-const RIVER_CORNER_ROUND_STRONG = 0.46; // fraction of TILE_SIZE
-const RIVER_CORNER_ROUND_MILD = 0.22;
+// The river itself uses a different technique — see buildRiverRibbonShape
+// — since a blob-per-tile approximation of a single winding *line* still
+// reads as a staircase even with rounded corners; a lake is closer to a
+// blob region, where this per-tile approach genuinely fits.
+const LAKE_CORNER_ROUND_STRONG = 0.46; // fraction of TILE_SIZE
+const LAKE_CORNER_ROUND_MILD = 0.22;
+
+// How finely the river's true sine centerline is sampled when building its
+// ribbon shape — many samples per tile, so the curve reads as genuinely
+// smooth rather than a coarse polygon.
+const RIVER_RIBBON_SAMPLES_PER_TILE = 8;
 
 export class GameScene extends Phaser.Scene {
   private engine: SimulationEngine;
@@ -194,26 +203,49 @@ export class GameScene extends Phaser.Scene {
    * the same source photo doesn't look like an identical repeated stamp
    * across the map — cheap variety without needing real per-tile crops.
    *
-   * River/lake tiles get an extra autotiling pass on top (see
-   * drawWaterTile) instead of the plain full-square stamp every other
-   * terrain uses, so the water reads as one curving waterway rather than
-   * a staircase of disconnected blue squares.
+   * Lake tiles get a per-tile autotiled bank (see drawLakeTile). River
+   * tiles are handled differently: their water stamp is collected here
+   * and clipped as one continuous ribbon afterward (applyRiverRibbonMask)
+   * instead of a plain full-square stamp or a per-tile rounded blob, so
+   * the water reads as one smoothly curving waterway rather than a
+   * staircase of disconnected squares.
    */
   private drawTerrainTextures() {
     this.textureLayer.removeAll(true);
     this.waterMaskGraphics.forEach((g) => g.destroy());
     this.waterMaskGraphics = [];
 
+    const riverWaterImages: Phaser.GameObjects.Image[] = [];
+
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         const terrain = this.tiles[y][x].terrain;
-        if (isWaterTerrain(terrain)) {
-          this.drawWaterTile(x, y);
+
+        if (terrain === "lake") {
+          this.drawLakeTile(x, y);
           continue;
         }
+
+        if (terrain === "river") {
+          this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.riverside, 7919); // bank base
+          riverWaterImages.push(this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 0));
+          continue;
+        }
+
         this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY[terrain], 0);
+
+        // Riverside tiles also get a water stamp on top (clipped below by
+        // the ribbon mask), since the smooth curve can sweep partway into
+        // this buffer band between two tile rows — without this there'd
+        // be a gap where the true curve reaches past the discrete 'river'
+        // tiles but no water photo exists underneath to reveal.
+        if (terrain === "riverside") {
+          riverWaterImages.push(this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 3571));
+        }
       }
     }
+
+    this.applyRiverRibbonMask(riverWaterImages);
   }
 
   /** One deterministically-varied full-tile photo stamp — see drawTerrainTextures' doc comment. */
@@ -229,14 +261,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Autotiled water tile: a pebble-bank stamp underneath (so rounded-off
+   * Autotiled lake tile: a pebble-bank stamp underneath (so rounded-off
    * corners reveal bank instead of empty space), then the water photo on
    * top masked to a rounded rect whose 4 corner radii are computed from
    * this tile's N/E/S/W neighbors — square where water continues into a
-   * neighbor, rounded where it meets land. See the RIVER_CORNER_ROUND_*
-   * constants' doc comment for the rule.
+   * neighbor, rounded where it meets land. See the LAKE_CORNER_ROUND_*
+   * constants' doc comment for the rule (and why the river uses a
+   * different technique).
    */
-  private drawWaterTile(x: number, y: number) {
+  private drawLakeTile(x: number, y: number) {
     this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.riverside, 7919); // bank base
     const waterImg = this.placeTextureStamp(x, y, TERRAIN_TEXTURE_KEY.river, 0);
 
@@ -251,8 +284,8 @@ export class GameScene extends Phaser.Scene {
 
     const cornerRadius = (edgeA: boolean, edgeB: boolean): number => {
       if (edgeA && edgeB) return 0;
-      if (!edgeA && !edgeB) return TILE_SIZE * RIVER_CORNER_ROUND_STRONG;
-      return TILE_SIZE * RIVER_CORNER_ROUND_MILD;
+      if (!edgeA && !edgeB) return TILE_SIZE * LAKE_CORNER_ROUND_STRONG;
+      return TILE_SIZE * LAKE_CORNER_ROUND_MILD;
     };
     const radii = {
       tl: cornerRadius(north, west),
@@ -266,6 +299,45 @@ export class GameScene extends Phaser.Scene {
     maskShape.fillRoundedRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE, radii);
     this.waterMaskGraphics.push(maskShape);
     waterImg.setMask(maskShape.createGeometryMask());
+  }
+
+  /**
+   * Groups every river-related water stamp (on 'river' tiles and the
+   * water-overflow stamps on bordering 'riverside' tiles) into one
+   * container and clips the whole thing to a single ribbon shape sampled
+   * from the river's true continuous centerline — a spline-smoothing pass
+   * on the river specifically, independent of the coarse gameplay grid
+   * that 'river'-vs-'riverside' terrain assignment still uses.
+   */
+  private applyRiverRibbonMask(images: Phaser.GameObjects.Image[]) {
+    if (images.length === 0) return;
+
+    const container = this.add.container(0, 0, images);
+    this.textureLayer.add(container);
+
+    const ribbon = this.buildRiverRibbonShape();
+    this.waterMaskGraphics.push(ribbon);
+    container.setMask(ribbon.createGeometryMask());
+  }
+
+  private buildRiverRibbonShape(): Phaser.GameObjects.Graphics {
+    const g = this.make.graphics(undefined, false);
+    g.fillStyle(0xffffff);
+
+    const totalSamples = MAP_HEIGHT * RIVER_RIBBON_SAMPLES_PER_TILE;
+    const left: { x: number; y: number }[] = [];
+    const right: { x: number; y: number }[] = [];
+
+    for (let i = 0; i <= totalSamples; i++) {
+      const yTiles = (i / totalSamples) * MAP_HEIGHT;
+      const cx = riverCenterX(yTiles);
+      const py = yTiles * TILE_SIZE;
+      left.push({ x: (cx - RIVER_HALF_WIDTH) * TILE_SIZE, y: py });
+      right.push({ x: (cx + RIVER_HALF_WIDTH) * TILE_SIZE, y: py });
+    }
+
+    g.fillPoints([...left, ...right.reverse()], true);
+    return g;
   }
 
   private drawGridLines(worldWidth: number, worldHeight: number) {
