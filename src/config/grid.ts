@@ -4,10 +4,12 @@
  * without pulling in Phaser.
  */
 
-export const TILE_SIZE = 64; // px, at zoom level 1
+// Tiles doubled in size and halved in count per axis (48x64 -> 24x128) so
+// the world covers the same total pixel area — same map, chunkier cells.
+export const TILE_SIZE = 128; // px, at zoom level 1
 
-export const MAP_WIDTH = 48; // tiles
-export const MAP_HEIGHT = 48; // tiles
+export const MAP_WIDTH = 24; // tiles
+export const MAP_HEIGHT = 24; // tiles
 
 export const MIN_ZOOM = 0.35;
 export const MAX_ZOOM = 2.5;

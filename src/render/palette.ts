@@ -1,4 +1,5 @@
 import type { BuildingId, CropId, TerrainType, ZoneType } from "../config/grid";
+import type { BuildingCategory } from "../sim/buildings";
 
 export const TERRAIN_COLORS: Record<TerrainType, number> = {
   river: 0x3a7ca5,
@@ -38,27 +39,54 @@ export const CROP_COLORS: Record<CropId, number> = {
   sheep: 0xe4ded0,
 };
 
-/** Short glyphs drawn over buildings — no art assets yet, so text stands in. */
-export const BUILDING_GLYPH: Record<BuildingId, string> = {
-  power_plant: "⚡",
-  water_tower: "💧",
-  school: "🏫",
-  clinic: "⛑",
-  church: "⛪",
-  town_hall: "🏛",
-  police_station: "🚓",
-  fire_station_volunteer: "🚒",
-  fire_station_full: "🚒",
-  covered_bridge: "🌉",
-  dock: "🎣",
-  hunting_cabin: "🦌",
-  barn: "🌾",
-  silo: "🥫",
-  farmers_market: "🧺",
-  historic_mill: "⚙",
-  mine_shaft: "⛏",
-  blacksmith: "🔨",
-  bakery: "🍞",
-  butcher: "🥩",
-  tailor: "🧵",
+/**
+ * Category colors — the single source of truth for both the toolbar
+ * (as CSS hex strings) and the in-world building badges (as Phaser
+ * numeric colors, derived below). One palette, one visual language,
+ * instead of each building improvising its own look.
+ */
+export const CATEGORY_COLOR_CSS: Record<BuildingCategory, string> = {
+  utility: "#e0d15b",
+  civic: "#9b5bd6",
+  agriculture: "#7a9a3c",
+  commercial: "#d6a75b",
+  industry: "#8a8378",
+};
+
+export const CATEGORY_COLOR_NUM: Record<BuildingCategory, number> = {
+  utility: 0xe0d15b,
+  civic: 0x9b5bd6,
+  agriculture: 0x7a9a3c,
+  commercial: 0xd6a75b,
+  industry: 0x8a8378,
+};
+
+/**
+ * Short monogram drawn on every building's badge — a consistent
+ * badge-plus-monogram treatment stands in for a hand-drawn icon set
+ * (none exists yet), so every building reads as one visual family
+ * instead of a grab-bag of emoji with wildly different art styles.
+ */
+export const BUILDING_ABBR: Record<BuildingId, string> = {
+  power_plant: "PWR",
+  water_tower: "H2O",
+  school: "SCH",
+  clinic: "CLN",
+  church: "CHR",
+  town_hall: "TH",
+  police_station: "PD",
+  fire_station_volunteer: "VFD",
+  fire_station_full: "FD",
+  covered_bridge: "BRG",
+  dock: "DCK",
+  hunting_cabin: "HNT",
+  barn: "BRN",
+  silo: "SLO",
+  farmers_market: "MKT",
+  historic_mill: "MLL",
+  mine_shaft: "MNE",
+  blacksmith: "SMH",
+  bakery: "BKY",
+  butcher: "BCH",
+  tailor: "TLR",
 };

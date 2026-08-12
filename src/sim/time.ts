@@ -10,10 +10,17 @@ export const DAYS_PER_MONTH = 30;
 export const MONTHS_PER_YEAR = 12;
 export const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR;
 
-/** Real seconds per in-game day at 1x speed. Tuned so a 4-year term is ~a few minutes. */
+/**
+ * Real seconds per in-game day at the historical "1x" pace. Speed values
+ * below are multipliers of this baseline — kept as the reference point so
+ * the two fast tiers (2/4) stay byte-for-byte the same real-world pace
+ * they always were, even though the new default (0.5) and slow (0.25)
+ * tiers sit underneath it.
+ */
 export const SECONDS_PER_DAY_AT_1X = 0.3;
 
-export type GameSpeed = 0 | 1 | 2 | 4;
+/** 0 = paused, 0.25 = Slow, 0.5 = Normal (default), 2 = Fast, 4 = Faster. */
+export type GameSpeed = 0 | 0.25 | 0.5 | 2 | 4;
 
 export interface GameTime {
   totalDays: number; // days since game start

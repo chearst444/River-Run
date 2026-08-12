@@ -6,10 +6,12 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   DEFAULT_ZOOM,
+  type BuildingId,
   type CropId,
   type Tile,
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
+import { BUILDINGS } from "../sim/buildings";
 import {
   TERRAIN_COLORS,
   ZONE_COLORS,
@@ -19,7 +21,8 @@ import {
   HOVER_HIGHLIGHT_COLOR,
   DAMAGED_TINT,
   NO_UTILITY_DOT,
-  BUILDING_GLYPH,
+  BUILDING_ABBR,
+  CATEGORY_COLOR_NUM,
 } from "../render/palette";
 import { eventBus, Events, type ToolSelection } from "../events";
 
@@ -98,13 +101,42 @@ export class GameScene extends Phaser.Scene {
     return this.engine.state.tiles;
   }
 
+  /**
+   * Terrain is drawn as a 4-corner gradient per tile rather than a flat
+   * fill: each corner's color is the average of every tile that shares
+   * it, so grass/water/hillside/farmland edges blend smoothly into one
+   * another instead of snapping at the tile boundary. One draw call per
+   * tile, computed once at load (and again after a save load).
+   */
   private drawTerrain() {
     const g = this.terrainLayer;
     g.clear();
+
+    const colorAt = (x: number, y: number): number => TERRAIN_COLORS[this.tiles[y][x].terrain];
+
+    const CORNER_OFFSETS = [
+      [-1, -1],
+      [0, -1],
+      [-1, 0],
+      [0, 0],
+    ] as const;
+    const cornerColor = (cx: number, cy: number): number => {
+      const colors: number[] = [];
+      for (const [dx, dy] of CORNER_OFFSETS) {
+        const tx = cx + dx;
+        const ty = cy + dy;
+        if (tx >= 0 && ty >= 0 && tx < MAP_WIDTH && ty < MAP_HEIGHT) colors.push(colorAt(tx, ty));
+      }
+      return averageColors(colors);
+    };
+
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
-        const tile = this.tiles[y][x];
-        g.fillStyle(TERRAIN_COLORS[tile.terrain], 1);
+        const topLeft = cornerColor(x, y);
+        const topRight = cornerColor(x + 1, y);
+        const bottomLeft = cornerColor(x, y + 1);
+        const bottomRight = cornerColor(x + 1, y + 1);
+        g.fillGradientStyle(topLeft, topRight, bottomLeft, bottomRight, 1, 1, 1, 1);
         g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
       }
     }
@@ -125,7 +157,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.zoneLayer;
     g.clear();
     this.buildingLayer.removeAll(true);
-    const pad = 4;
+    const pad = TILE_SIZE * 0.06;
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
@@ -147,21 +179,44 @@ export class GameScene extends Phaser.Scene {
           (!tile.hasPower || !tile.hasWater)
         ) {
           g.fillStyle(NO_UTILITY_DOT, 1);
-          g.fillCircle(x * TILE_SIZE + TILE_SIZE - 8, y * TILE_SIZE + 8, 4);
+          g.fillCircle(x * TILE_SIZE + TILE_SIZE * 0.88, y * TILE_SIZE + TILE_SIZE * 0.12, TILE_SIZE * 0.06);
         }
 
         if (tile.building) {
-          const glyph = this.add.text(
-            x * TILE_SIZE + TILE_SIZE / 2,
-            y * TILE_SIZE + TILE_SIZE / 2,
-            BUILDING_GLYPH[tile.building],
-            { fontSize: `${Math.floor(TILE_SIZE * 0.55)}px` },
-          );
-          glyph.setOrigin(0.5, 0.5);
-          this.buildingLayer.add(glyph);
+          this.drawBuildingBadge(x, y, tile.building);
         }
       }
     }
+  }
+
+  /**
+   * Every building renders the same way — a rounded-square badge colored
+   * by its category (the same palette as the toolbar tabs) with a bold
+   * monogram — so the map reads as one consistent icon family rather
+   * than a mix of styles.
+   */
+  private drawBuildingBadge(x: number, y: number, building: BuildingId) {
+    const def = BUILDINGS[building];
+    const centerX = x * TILE_SIZE + TILE_SIZE / 2;
+    const centerY = y * TILE_SIZE + TILE_SIZE / 2;
+    const badgeSize = TILE_SIZE * 0.62;
+    const corner = badgeSize * 0.22;
+
+    const badge = this.add.graphics();
+    badge.fillStyle(CATEGORY_COLOR_NUM[def.category], 0.95);
+    badge.fillRoundedRect(centerX - badgeSize / 2, centerY - badgeSize / 2, badgeSize, badgeSize, corner);
+    badge.lineStyle(Math.max(1, TILE_SIZE * 0.015), 0xffffff, 0.6);
+    badge.strokeRoundedRect(centerX - badgeSize / 2, centerY - badgeSize / 2, badgeSize, badgeSize, corner);
+    this.buildingLayer.add(badge);
+
+    const label = this.add.text(centerX, centerY, BUILDING_ABBR[building], {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: `${Math.floor(TILE_SIZE * 0.15)}px`,
+      fontStyle: "bold",
+      color: "#fdfaf3",
+    });
+    label.setOrigin(0.5, 0.5);
+    this.buildingLayer.add(label);
   }
 
   private setupInput() {
@@ -312,4 +367,18 @@ export class GameScene extends Phaser.Scene {
       this.engine.setCropType(tx, ty, this.selectedCrop);
     }
   }
+}
+
+/** Channel-wise average of a set of 0xRRGGBB colors, used for terrain-edge blending. */
+function averageColors(colors: number[]): number {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (const c of colors) {
+    r += (c >> 16) & 0xff;
+    g += (c >> 8) & 0xff;
+    b += c & 0xff;
+  }
+  const n = colors.length;
+  return ((Math.round(r / n) << 16) | (Math.round(g / n) << 8) | Math.round(b / n)) >>> 0;
 }

@@ -17,6 +17,35 @@ export interface CountyFairState {
   lastHeldYear: number; // -1 = never
 }
 
+/** A live snapshot of today's income vs. expenses, for the budget readout. */
+export interface BudgetSnapshot {
+  grossBusinessRevenue: number; // before tax
+  taxIncome: number; // treasury's cut of grossBusinessRevenue
+  decisionEventIncome: number; // flat revenue-share from approved proposals, untaxed
+  civicSalaries: number;
+  maintenance: number;
+  corruptionSkim: number;
+  disasterRepairs: number;
+  income: number; // taxIncome + decisionEventIncome
+  expenses: number; // civicSalaries + maintenance + corruptionSkim + disasterRepairs
+  net: number; // income - expenses
+}
+
+export function createEmptyBudgetSnapshot(): BudgetSnapshot {
+  return {
+    grossBusinessRevenue: 0,
+    taxIncome: 0,
+    decisionEventIncome: 0,
+    civicSalaries: 0,
+    maintenance: 0,
+    corruptionSkim: 0,
+    disasterRepairs: 0,
+    income: 0,
+    expenses: 0,
+    net: 0,
+  };
+}
+
 export interface GameState {
   tiles: Tile[][];
   time: GameTime;
@@ -48,6 +77,7 @@ export interface GameState {
   famineStreak: number;
   gameOver: boolean;
   gameOverReason: string | null;
+  budget: BudgetSnapshot;
 }
 
 export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e3779b9): GameState {
@@ -55,7 +85,7 @@ export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e
   return {
     tiles,
     time: createInitialTime(),
-    speed: 1,
+    speed: 0.5,
     paused: false,
     resources: createEmptyResourceMap(),
     storageCapacity: 100,
@@ -81,6 +111,7 @@ export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e
     famineStreak: 0,
     gameOver: false,
     gameOverReason: null,
+    budget: createEmptyBudgetSnapshot(),
   };
 }
 

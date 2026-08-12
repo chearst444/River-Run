@@ -18,7 +18,13 @@ import {
   stepPopulation,
   maybeUpgradeDensity,
 } from "./population";
-import { computeDailyUpkeep, computeDailyTaxIncome, MIN_TAX_RATE, MAX_TAX_RATE } from "./economy";
+import {
+  computeGrossBusinessRevenue,
+  computeCivicSalaries,
+  computeMaintenance,
+  MIN_TAX_RATE,
+  MAX_TAX_RATE,
+} from "./economy";
 import { driftCampaign, playerCampaign, runElection, CAMPAIGN_COST } from "./elections";
 import { tickDisasters } from "./disasters";
 import { tickImmigration, resolveImmigration, type ImmigrationWave } from "./immigration";
@@ -108,6 +114,10 @@ export class SimulationEngine {
       return;
     }
 
+    // Disasters run before happiness/economy so today's damage (if any)
+    // is reflected in both, rather than lagging a day behind.
+    const disasterRepairCost = this.stepDisasters();
+
     const serviceCoverage = computeServiceCoverage(s.tiles, populatedTiles);
     const corruptionPenalty =
       s.election.mayor !== "player" && s.election.corruptionSiphonPerDay > 0 ? 8 : 0;
@@ -134,8 +144,7 @@ export class SimulationEngine {
       1,
     );
 
-    this.stepEconomy(production.income);
-    this.stepDisasters();
+    this.stepEconomy(production.income, disasterRepairCost);
     this.stepDecisionEvents();
     this.stepImmigration();
     this.stepElections();
@@ -225,15 +234,45 @@ export class SimulationEngine {
     }
   }
 
-  private stepEconomy(productionIncome: number) {
+  /**
+   * The business economy loop: commercial/industrial/farm activity plus
+   * the production-chain shops generate gross revenue; the tax rate takes
+   * the city's cut into the treasury. Everything else here is an expense.
+   * Builds `state.budget` as a live income/expense/net snapshot for the
+   * HUD's readout.
+   */
+  private stepEconomy(productionIncome: number, disasterRepairs: number) {
     const s = this.state;
-    const upkeep = computeDailyUpkeep(s.tiles);
-    const taxIncome = computeDailyTaxIncome(s.population, s.taxRate);
-    const corruptionSiphon = s.election.mayor !== "player" ? s.election.corruptionSiphonPerDay : 0;
-    s.treasury += taxIncome + productionIncome + s.extraIncomePerDay - upkeep - corruptionSiphon;
 
-    if (corruptionSiphon > 0) {
-      s.election.scandalRiskAccrued += corruptionSiphon;
+    const grossBusinessRevenue =
+      computeGrossBusinessRevenue(s.tiles, s.employmentRate, s.happiness, s.time.season) +
+      productionIncome;
+    const taxIncome = grossBusinessRevenue * s.taxRate;
+    const decisionEventIncome = s.extraIncomePerDay;
+
+    const civicSalaries = computeCivicSalaries(s.tiles);
+    const maintenance = computeMaintenance(s.tiles);
+    const corruptionSkim = s.election.mayor !== "player" ? s.election.corruptionSiphonPerDay : 0;
+
+    const income = taxIncome + decisionEventIncome;
+    const expenses = civicSalaries + maintenance + corruptionSkim + disasterRepairs;
+    s.treasury += income - expenses;
+
+    s.budget = {
+      grossBusinessRevenue,
+      taxIncome,
+      decisionEventIncome,
+      civicSalaries,
+      maintenance,
+      corruptionSkim,
+      disasterRepairs,
+      income,
+      expenses,
+      net: income - expenses,
+    };
+
+    if (corruptionSkim > 0) {
+      s.election.scandalRiskAccrued += corruptionSkim;
       if (s.election.scandalRiskAccrued > SCANDAL_THRESHOLD) {
         s.election.scandalRiskAccrued = 0;
         s.election.nextElectionDay = Math.min(s.election.nextElectionDay, s.time.totalDays + 30);
@@ -243,19 +282,18 @@ export class SimulationEngine {
     }
   }
 
-  private stepDisasters() {
+  /** Resolves today's storm/flood/earthquake tick and returns the repair bill, if any. */
+  private stepDisasters(): number {
     const s = this.state;
     const fireResponseFast = s.tiles.some((row) => row.some((t) => t.building === "fire_station_full"));
     const before = s.disasters.repairQueue.length;
     const result = tickDisasters(s.tiles, s.time.season, fireResponseFast, this.rand, s.disasters);
     const newlyDamaged = Math.max(0, s.disasters.repairQueue.length - before);
-    if (newlyDamaged > 0) {
-      s.treasury -= newlyDamaged * REPAIR_COST_PER_TILE;
-    }
     for (const msg of result.messages) {
       pushLog(s, msg.text);
       eventBus.emit(Events.DisasterMessage, msg);
     }
+    return newlyDamaged * REPAIR_COST_PER_TILE;
   }
 
   private stepDecisionEvents() {

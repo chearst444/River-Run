@@ -2,6 +2,7 @@
 
 import type { GameState } from "./state";
 import type { ProposalId } from "./decisionEvents";
+import { MAP_WIDTH, MAP_HEIGHT } from "../config/grid";
 
 const SAVE_KEY = "river-run-save-v1";
 
@@ -32,6 +33,12 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SerializedGameState;
+    // A save from before a map-size change (tile size/count) has the
+    // wrong grid shape for the current build — refuse it rather than
+    // rendering/indexing garbage.
+    if (parsed.tiles?.length !== MAP_HEIGHT || parsed.tiles?.[0]?.length !== MAP_WIDTH) {
+      return null;
+    }
     return {
       ...parsed,
       decisionEvents: {

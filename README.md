@@ -45,6 +45,31 @@ loop:
 Numeric balance (costs, yields, happiness weights) is intentionally loose — the GDD
 flags balancing as a later pass once the systems are all in place, which they now are.
 
+### Recent iteration
+
+- **Speed tiers** — Slow / Normal / Fast / Faster, plus pause. Normal is half the old
+  default pace, Slow is a quarter of the original; Fast/Faster are unchanged from
+  before.
+- **Business economy loop** — commercial, industrial, and farmland tiles (plus the
+  production-chain shops) generate gross revenue based on activity (employment,
+  happiness/demand, season); the player-adjustable tax rate takes the city's cut into
+  the treasury. Expenses are itemized: civic salaries (school/clinic/church/town
+  hall/police/fire), building maintenance, disaster repairs, and — when a Grafter wins
+  an election — a visible corruption skim line in the live budget readout (HUD menu →
+  Budget). Decision-event revenue (data center/factory) stays a flat, untaxed line
+  since it's a fixed number promised in the approval modal.
+- **Bigger tiles** — tile size doubled (64px → 128px) and the grid halved per axis
+  (48×48 → 24×24) so the map covers the same total area with fewer, chunkier cells.
+  Terrain-generation proportions (river width, mountain fringe, etc.) were rescaled to
+  match.
+- **Visual polish** — terrain now blends smoothly at grass/water/hillside edges via a
+  4-corner gradient fill per tile (procedural, no external art) instead of flat
+  blocky tiles; every building renders as a consistent colored badge + monogram
+  (e.g. "PWR", "H2O", "SCH") instead of a mix of differently-styled emoji.
+  **Not done yet:** importing custom terrain textures from an external repo — the
+  request referenced a link that wasn't included. Send the actual repo/folder URL and
+  they can be wired in.
+
 ## Tech Stack
 
 - **Rendering:** [Phaser.js](https://phaser.io/) 3
@@ -62,7 +87,8 @@ src/
                 (roads/utilities), population, economy, agriculture, production,
                 elections, disasters, immigration, decision events, the central
                 engine, save/load
-  render/     — rendering-only concerns (color palette, building glyphs)
+  render/     — rendering-only concerns (color palette, category colors, building
+                icon monograms)
   scenes/     — the Phaser GameScene (camera, input, tile/building rendering)
   ui/         — DOM-based UI (categorized toolbar, HUD, modal controller)
   events.ts   — shared event bus between the sim engine and UI

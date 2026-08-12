@@ -45,12 +45,15 @@ export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
     const t = y / MAP_HEIGHT;
     return MAP_WIDTH * 0.5 + Math.sin(t * Math.PI * 2.2) * (MAP_WIDTH * 0.12);
   };
-  const riverHalfWidth = 1.6;
+  // Tile-unit geometry below is scaled to the map's current resolution
+  // (halved alongside MAP_WIDTH/MAP_HEIGHT when tiles doubled in size) so
+  // the river/lake/mountain proportions stay the same real-world shape.
+  const riverHalfWidth = 0.8;
 
   // Inland lake: a roughly circular patch away from the river, biased
   // toward the far side of the map.
   const lakeCenter = { x: MAP_WIDTH * 0.82, y: MAP_HEIGHT * 0.62 };
-  const lakeRadius = 3.2;
+  const lakeRadius = 1.6;
 
   for (let y = 0; y < MAP_HEIGHT; y++) {
     const row: Tile[] = [];
@@ -71,16 +74,16 @@ export function generateTerrain(opts: GenerateOptions = {}): Tile[][] {
       } else if (distToLake < lakeRadius) {
         terrain = "lake";
         elevation = 0;
-      } else if (distToRiver < riverHalfWidth + 2.5) {
+      } else if (distToRiver < riverHalfWidth + 1.25) {
         terrain = "riverside";
         elevation = 1;
-      } else if (distToEdge < 4) {
+      } else if (distToEdge < 2) {
         terrain = "mountain";
         elevation = 8 + rand() * 2;
-      } else if (distToEdge < 8) {
+      } else if (distToEdge < 4) {
         terrain = rand() < 0.5 ? "forest" : "hillside";
         elevation = 5 + rand() * 2;
-      } else if (distToEdge < 12) {
+      } else if (distToEdge < 6) {
         terrain = "hillside";
         elevation = 3 + rand() * 1.5;
       } else {

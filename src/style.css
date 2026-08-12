@@ -257,6 +257,55 @@
   font: 600 12px system-ui, sans-serif;
 }
 
+.hud-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-budget-line {
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.hud-budget-line.dim {
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.hud-budget-line.income {
+  color: var(--good);
+}
+
+.hud-budget-line.expense {
+  color: #e0a05b;
+}
+
+.hud-budget-line.expense.corrupt {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.hud-budget-line.total {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  margin-top: 4px;
+  padding-top: 4px;
+  font-weight: 700;
+}
+
+.hud-budget-line.total.positive {
+  color: var(--good);
+}
+
+.hud-budget-line.total.negative {
+  color: var(--danger);
+}
+
 .hud-log {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   padding-top: 8px;

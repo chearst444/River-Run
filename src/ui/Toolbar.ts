@@ -1,6 +1,7 @@
 import { eventBus, Events, type ToolSelection } from "../events";
 import { BUILDINGS, type BuildingCategory } from "../sim/buildings";
 import { CROPS, CROP_IDS } from "../sim/agriculture";
+import { CATEGORY_COLOR_CSS } from "../render/palette";
 import type { CropId, ZoneType } from "../config/grid";
 
 interface ZoneToolDef {
@@ -117,7 +118,7 @@ export class Toolbar {
     } else {
       const defs = Object.values(BUILDINGS).filter((b) => b.category === this.activeTab);
       defs.forEach((def) => {
-        const btn = this.makeButton(def.id, `${def.name} · $${def.cost}`, categoryColor(def.category));
+        const btn = this.makeButton(def.id, `${def.name} · $${def.cost}`, CATEGORY_COLOR_CSS[def.category]);
         btn.title = def.description;
         this.toolsRow.appendChild(btn);
       });
@@ -174,20 +175,5 @@ export class Toolbar {
     this.toastTimer = window.setTimeout(() => {
       this.toast.classList.remove("visible");
     }, 1800);
-  }
-}
-
-function categoryColor(category: BuildingCategory): string {
-  switch (category) {
-    case "utility":
-      return "#e0d15b";
-    case "civic":
-      return "#9b5bd6";
-    case "agriculture":
-      return "#7a9a3c";
-    case "commercial":
-      return "#d6a75b";
-    case "industry":
-      return "#8a8378";
   }
 }

@@ -55,6 +55,41 @@ export class HUD {
     // this hook exists for a future toast/sound cue.
   }
 
+  private renderBudget(): string {
+    const b = this.engine.state.budget;
+    const mayorName = this.engine.state.election.mayorName;
+    const money = (n: number) => `$${Math.round(Math.abs(n))}`;
+
+    const lines: string[] = [];
+    lines.push(
+      `<div class="hud-budget-line dim">Business revenue: ${money(b.grossBusinessRevenue)} (${Math.round(this.engine.state.taxRate * 100)}% taxed)</div>`,
+    );
+    lines.push(`<div class="hud-budget-line income">+ Business tax: ${money(b.taxIncome)}</div>`);
+    if (b.decisionEventIncome > 0) {
+      lines.push(`<div class="hud-budget-line income">+ Decision-event revenue: ${money(b.decisionEventIncome)}</div>`);
+    }
+    lines.push(`<div class="hud-budget-line expense">− Civic salaries: ${money(b.civicSalaries)}</div>`);
+    lines.push(`<div class="hud-budget-line expense">− Maintenance: ${money(b.maintenance)}</div>`);
+    if (b.corruptionSkim > 0) {
+      lines.push(
+        `<div class="hud-budget-line expense corrupt">− Corruption skim (${escapeHtml(mayorName)}): ${money(b.corruptionSkim)}</div>`,
+      );
+    }
+    if (b.disasterRepairs > 0) {
+      lines.push(`<div class="hud-budget-line expense">− Disaster repairs: ${money(b.disasterRepairs)}</div>`);
+    }
+    lines.push(
+      `<div class="hud-budget-line total ${b.net >= 0 ? "positive" : "negative"}">Net today: ${b.net >= 0 ? "+" : "−"}${money(b.net)}</div>`,
+    );
+
+    return `
+      <div class="hud-row">
+        <span class="hud-panel-label">Budget (today)</span>
+      </div>
+      <div class="hud-budget">${lines.join("")}</div>
+    `;
+  }
+
   private render() {
     const s = this.engine.state;
     const pop = Math.round(s.population);
@@ -85,9 +120,10 @@ export class HUD {
 
     const speeds: { value: GameSpeed; label: string }[] = [
       { value: 0, label: "⏸" },
-      { value: 1, label: "1x" },
-      { value: 2, label: "2x" },
-      { value: 4, label: "4x" },
+      { value: 0.25, label: "Slow" },
+      { value: 0.5, label: "Normal" },
+      { value: 2, label: "Fast" },
+      { value: 4, label: "Faster" },
     ];
 
     this.panel.innerHTML = `
@@ -109,6 +145,7 @@ export class HUD {
       <div class="hud-row">
         <span class="hud-panel-label">Jobs ${Math.round(s.jobsAvailable)} · Housing ${Math.round(s.housingCapacity)}</span>
       </div>
+      ${this.renderBudget()}
       <div class="hud-row hud-actions">
         <button class="hud-action-btn" data-action="campaign">📢 Campaign ($150)</button>
         <button class="hud-action-btn" data-action="fair">🎪 County Fair ($100)</button>
