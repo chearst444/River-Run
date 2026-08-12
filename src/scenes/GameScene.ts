@@ -14,8 +14,9 @@ import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
 import {
   TEXTURE_FILES,
-  BRIDGE_TEXTURE_KEY,
   MAP_BACKDROP_TEXTURE_KEY,
+  CROP_SPRITE_KEY,
+  BUILDING_SPRITE_KEY,
   ZONE_COLORS,
   CROP_COLORS,
   HOVER_HIGHLIGHT_COLOR,
@@ -137,12 +138,22 @@ export class GameScene extends Phaser.Scene {
         const tile = this.tiles[y][x];
         if (tile.zone === "none") continue;
 
-        const color =
-          tile.zone === "farmland" && tile.cropType
-            ? CROP_COLORS[tile.cropType]
-            : ZONE_COLORS[tile.zone];
-        g.fillStyle(color, 0.9);
-        g.fillRect(x * TILE_SIZE + pad, y * TILE_SIZE + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
+        // A planted crop with real art (see palette.ts's CROP_SPRITE_KEY)
+        // renders as that photo instead of a flat color fill — anything
+        // not yet illustrated keeps the fill exactly as before.
+        const cropSpriteKey =
+          tile.zone === "farmland" && tile.cropType ? CROP_SPRITE_KEY[tile.cropType] : undefined;
+
+        if (cropSpriteKey) {
+          this.drawSpriteIcon(x, y, cropSpriteKey);
+        } else {
+          const color =
+            tile.zone === "farmland" && tile.cropType
+              ? CROP_COLORS[tile.cropType]
+              : ZONE_COLORS[tile.zone];
+          g.fillStyle(color, 0.9);
+          g.fillRect(x * TILE_SIZE + pad, y * TILE_SIZE + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
+        }
 
         if (tile.damaged) {
           g.fillStyle(DAMAGED_TINT, 0.45);
@@ -166,13 +177,14 @@ export class GameScene extends Phaser.Scene {
    * Every building renders the same way — a rounded-square badge colored
    * by its category (the same palette as the toolbar tabs) with a bold
    * monogram — so the map reads as one consistent icon family rather
-   * than a mix of styles. Covered bridges are the one exception: the
-   * extracted reference photo (see palette.ts's BRIDGE_TEXTURE_KEY) reads
-   * as an actual bridge crossing the water, which a generic badge can't.
+   * than a mix of styles, UNLESS it has real art (see palette.ts's
+   * BUILDING_SPRITE_KEY, filled in incrementally as the user generates
+   * more assets), in which case that photo renders instead.
    */
   private drawBuildingBadge(x: number, y: number, building: BuildingId) {
-    if (building === "covered_bridge") {
-      this.drawBridgeSprite(x, y);
+    const spriteKey = BUILDING_SPRITE_KEY[building];
+    if (spriteKey) {
+      this.drawSpriteIcon(x, y, spriteKey);
       return;
     }
 
@@ -199,11 +211,17 @@ export class GameScene extends Phaser.Scene {
     this.buildingLayer.add(label);
   }
 
-  private drawBridgeSprite(x: number, y: number) {
+  /**
+   * A real photo-cutout icon centered on a tile, uniformly scaled (never
+   * stretched — these source photos aren't all square, unlike the old
+   * flat-color fills) so it just fits within the tile.
+   */
+  private drawSpriteIcon(x: number, y: number, key: string, maxFraction = 0.86) {
     const centerX = x * TILE_SIZE + TILE_SIZE / 2;
     const centerY = y * TILE_SIZE + TILE_SIZE / 2;
-    const img = this.add.image(centerX, centerY, BRIDGE_TEXTURE_KEY);
-    img.setDisplaySize(TILE_SIZE * 0.96, TILE_SIZE * 0.96);
+    const img = this.add.image(centerX, centerY, key);
+    const scale = (TILE_SIZE * maxFraction) / Math.max(img.width, img.height);
+    img.setScale(scale);
     this.buildingLayer.add(img);
   }
 

@@ -14,10 +14,37 @@ export const BRIDGE_TEXTURE_KEY = "tex-river-bridge";
  */
 export const MAP_BACKDROP_TEXTURE_KEY = "tex-map-backdrop";
 
-/** Files served from /public/textures. */
+/**
+ * Real photo-cutout icons for crops, filled in incrementally as the user
+ * generates more art — a `Partial` map on purpose, so a crop with no entry
+ * yet just falls back to its flat CROP_COLORS fill (see
+ * GameScene.redrawDynamicLayers). Same idea as BRIDGE_TEXTURE_KEY was for
+ * the covered bridge, generalized so each new asset is a one-line add
+ * here instead of new bespoke rendering code.
+ */
+export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
+  tomatoes: "sprite-crop-tomatoes",
+  wheat: "sprite-crop-wheat",
+  potatoes: "sprite-crop-potatoes",
+};
+
+/**
+ * Real photo-cutout icons for buildings, same deal as CROP_SPRITE_KEY —
+ * anything not listed here keeps its category badge + monogram (see
+ * GameScene.drawBuildingBadge). The covered bridge was the original
+ * one-off special case; it's folded in here as just another entry.
+ */
+export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
+  covered_bridge: BRIDGE_TEXTURE_KEY,
+};
+
+/** Files served from /public — textures and sprites alike load through the same Phaser loader. */
 export const TEXTURE_FILES: Record<string, string> = {
   [BRIDGE_TEXTURE_KEY]: "/textures/river_bridge.jpg",
   [MAP_BACKDROP_TEXTURE_KEY]: "/textures/river_valley.jpg",
+  "sprite-crop-tomatoes": "/sprites/crop_tomatoes.png",
+  "sprite-crop-wheat": "/sprites/crop_wheat.png",
+  "sprite-crop-potatoes": "/sprites/crop_potatoes.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {

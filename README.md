@@ -85,6 +85,16 @@ flags balancing as a later pass once the systems are all in place, which they no
   rule; there's no separate lake anymore since the reference image doesn't show one.
   The extracted `river_bridge.jpg` sprite is unaffected — it's a discrete building
   icon for player-built covered bridges, not a terrain fill.
+- **Real photo icons for crops/buildings, added incrementally** — the covered
+  bridge was the first "real art instead of a generic shape" case; it's now a
+  general system. `palette.ts`'s `CROP_SPRITE_KEY`/`BUILDING_SPRITE_KEY` are
+  `Partial` maps from crop/building id to a sprite texture key — anything listed
+  renders as that photo-cutout (`public/sprites/`, background-removed and
+  cropped to content), scaled uniformly to fit its tile; anything not yet
+  listed keeps rendering exactly as before (a flat crop-color fill, or a
+  category badge + monogram). So far: tomatoes, wheat, and potatoes have real
+  art; every other crop and every other building still uses its fallback until
+  art for it is added.
 
 ## Tech Stack
 
