@@ -101,10 +101,11 @@ flags balancing as a later pass once the systems are all in place, which they no
   reads just as clearly on a tile. fire_station_volunteer deliberately keeps
   its plain badge for now — a modest "before the upgrade" look plays well
   against the real fire_station_full render once that upgrade fires.
-  Also real building renders: power_plant, water_tower, barn, silo, and
-  bakery. Everything else (production-chain shops besides bakery, the
-  remaining civic buildings) still uses its category-badge fallback. One
-  inconsistency worth noting: the cow art is shot from directly overhead
+  Also real building renders: power_plant, water_tower, barn, silo, bakery,
+  butcher, tailor, farmers_market, and historic_mill. Only
+  fire_station_volunteer, clinic, and blacksmith are left on their
+  category-badge fallback. One inconsistency worth noting: the cow art is
+  shot from directly overhead
   (matching the map's own aerial angle) while the other animals are a side
   profile — both render fine on a tile, just at different implied camera
   angles; flagging it in case that's worth normalizing later.
