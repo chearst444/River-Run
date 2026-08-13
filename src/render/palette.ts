@@ -40,10 +40,12 @@ export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
  * GameScene.drawBuildingBadge). The covered bridge was the original
  * one-off special case; it's folded in here as just another entry.
  *
- * dock/hunting_cabin/mine_shaft use the resource they produce (fish, deer,
- * ore) rather than a picture of the structure itself — that's what the
- * user generated for them, and it reads clearly on a tile either way.
- * school is an actual building render.
+ * hunting_cabin/mine_shaft use the resource they produce (a deer, a raw
+ * ore ingot) rather than a picture of the structure itself — that's what
+ * the user generated for them, and it reads clearly on a tile either way.
+ * dock started the same way (a fish icon) but was swapped for an actual
+ * dock/pier render once that art arrived — the resource-icon approach was
+ * always a stand-in for a real structure render, not a permanent choice.
  */
 export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   covered_bridge: BRIDGE_TEXTURE_KEY,
@@ -67,6 +69,7 @@ export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   tailor: "sprite-building-tailor",
   farmers_market: "sprite-building-farmers_market",
   historic_mill: "sprite-building-historic_mill",
+  blacksmith: "sprite-building-blacksmith",
 };
 
 /** Files served from /public — textures and sprites alike load through the same Phaser loader. */
@@ -99,6 +102,7 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-building-tailor": "/sprites/building_tailor.png",
   "sprite-building-farmers_market": "/sprites/building_farmers_market.png",
   "sprite-building-historic_mill": "/sprites/building_historic_mill.png",
+  "sprite-building-blacksmith": "/sprites/building_blacksmith.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {

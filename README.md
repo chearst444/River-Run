@@ -94,17 +94,20 @@ flags balancing as a later pass once the systems are all in place, which they no
   listed keeps rendering exactly as before (a flat crop-color fill, or a
   category badge + monogram). Every crop now has real art (wheat, corn,
   potatoes, tomatoes, apples, cows, chickens, goats, sheep). Buildings: the
-  covered bridge, school, church, town_hall, police_station, and
-  fire_station_full are actual building renders; dock/hunting_cabin/mine_shaft
-  use the resource they produce (a fish, a deer, a raw ore ingot) rather than
-  a picture of the structure, which is what the user generated for them and
-  reads just as clearly on a tile. fire_station_volunteer deliberately keeps
-  its plain badge for now — a modest "before the upgrade" look plays well
-  against the real fire_station_full render once that upgrade fires.
-  Also real building renders: power_plant, water_tower, barn, silo, bakery,
-  butcher, tailor, farmers_market, and historic_mill. Only
-  fire_station_volunteer, clinic, and blacksmith are left on their
-  category-badge fallback. One inconsistency worth noting: the cow art is
+  covered bridge, school, church, town_hall, police_station,
+  fire_station_full, power_plant, water_tower, barn, silo, bakery, butcher,
+  tailor, farmers_market, historic_mill, blacksmith, and dock are all actual
+  building renders now. hunting_cabin/mine_shaft still use the resource they
+  produce (a deer, a raw ore ingot) rather than a picture of the structure —
+  that's what the user generated for them, and it reads clearly on a tile
+  either way; dock started the same way (a fish icon) but was swapped for a
+  real dock/pier render once that art arrived, since the resource-icon
+  approach was always meant as a stand-in, not a permanent choice.
+  fire_station_volunteer deliberately keeps its plain badge for now — a
+  modest "before the upgrade" look plays well against the real
+  fire_station_full render once that upgrade fires. Only clinic is left on
+  its category-badge fallback with no plan yet. One inconsistency worth
+  noting: the cow art is
   shot from directly overhead
   (matching the map's own aerial angle) while the other animals are a side
   profile — both render fine on a tile, just at different implied camera
