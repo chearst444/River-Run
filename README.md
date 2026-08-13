@@ -96,8 +96,11 @@ flags balancing as a later pass once the systems are all in place, which they no
   potatoes, tomatoes, apples, cows, chickens, goats, sheep). Buildings: the
   covered bridge, school, church, town_hall, police_station,
   fire_station_full, power_plant, water_tower, barn, silo, bakery, butcher,
-  tailor, farmers_market, historic_mill, blacksmith, and dock are all actual
-  building renders now. hunting_cabin/mine_shaft still use the resource they
+  tailor, farmers_market, historic_mill, blacksmith, clinic, and dock are
+  all actual building renders now — clinic uses the Tudor guildhall-style
+  building originally sent alongside town_hall's art, set aside at the time
+  since the game only has one civic-seat type; it's the clinic, not a spare
+  town_hall look. hunting_cabin/mine_shaft still use the resource they
   produce (a deer, a raw ore ingot) rather than a picture of the structure —
   that's what the user generated for them, and it reads clearly on a tile
   either way; dock started the same way (a fish icon) but was swapped for a
@@ -105,8 +108,8 @@ flags balancing as a later pass once the systems are all in place, which they no
   approach was always meant as a stand-in, not a permanent choice.
   fire_station_volunteer deliberately keeps its plain badge for now — a
   modest "before the upgrade" look plays well against the real
-  fire_station_full render once that upgrade fires. Only clinic is left on
-  its category-badge fallback with no plan yet. One inconsistency worth
+  fire_station_full render once that upgrade fires. Every building now has
+  real art except fire_station_volunteer. One inconsistency worth
   noting: the cow art is
   shot from directly overhead
   (matching the map's own aerial angle) while the other animals are a side

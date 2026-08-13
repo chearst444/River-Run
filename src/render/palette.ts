@@ -70,6 +70,7 @@ export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   farmers_market: "sprite-building-farmers_market",
   historic_mill: "sprite-building-historic_mill",
   blacksmith: "sprite-building-blacksmith",
+  clinic: "sprite-building-clinic",
 };
 
 /** Files served from /public — textures and sprites alike load through the same Phaser loader. */
@@ -103,6 +104,7 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-building-farmers_market": "/sprites/building_farmers_market.png",
   "sprite-building-historic_mill": "/sprites/building_historic_mill.png",
   "sprite-building-blacksmith": "/sprites/building_blacksmith.png",
+  "sprite-building-clinic": "/sprites/building_clinic.png",
 };
 
 export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
