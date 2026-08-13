@@ -68,6 +68,9 @@ export class HUD {
     if (b.decisionEventIncome > 0) {
       lines.push(`<div class="hud-budget-line income">+ Decision-event revenue: ${money(b.decisionEventIncome)}</div>`);
     }
+    if (b.propertyTax > 0) {
+      lines.push(`<div class="hud-budget-line income">+ Property tax (annual): ${money(b.propertyTax)}</div>`);
+    }
     lines.push(`<div class="hud-budget-line expense">− Civic salaries: ${money(b.civicSalaries)}</div>`);
     lines.push(`<div class="hud-budget-line expense">− Maintenance: ${money(b.maintenance)}</div>`);
     if (b.corruptionSkim > 0) {

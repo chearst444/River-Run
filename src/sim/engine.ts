@@ -22,6 +22,7 @@ import {
   computeGrossBusinessRevenue,
   computeCivicSalaries,
   computeMaintenance,
+  computeAnnualPropertyTax,
   MIN_TAX_RATE,
   MAX_TAX_RATE,
 } from "./economy";
@@ -240,6 +241,10 @@ export class SimulationEngine {
    * the city's cut into the treasury. Everything else here is an expense.
    * Builds `state.budget` as a live income/expense/net snapshot for the
    * HUD's readout.
+   *
+   * Once a year (the day the calendar rolls over to month 1, day 1), every
+   * standing shop also pays a flat property tax on top of that — a tax on
+   * existing, not on the day's activity, so it lands even in a slow month.
    */
   private stepEconomy(productionIncome: number, disasterRepairs: number) {
     const s = this.state;
@@ -249,12 +254,14 @@ export class SimulationEngine {
       productionIncome;
     const taxIncome = grossBusinessRevenue * s.taxRate;
     const decisionEventIncome = s.extraIncomePerDay;
+    const isPropertyTaxDay = s.time.month === 1 && s.time.day === 1;
+    const propertyTax = isPropertyTaxDay ? computeAnnualPropertyTax(s.tiles) : 0;
 
     const civicSalaries = computeCivicSalaries(s.tiles);
     const maintenance = computeMaintenance(s.tiles);
     const corruptionSkim = s.election.mayor !== "player" ? s.election.corruptionSiphonPerDay : 0;
 
-    const income = taxIncome + decisionEventIncome;
+    const income = taxIncome + decisionEventIncome + propertyTax;
     const expenses = civicSalaries + maintenance + corruptionSkim + disasterRepairs;
     s.treasury += income - expenses;
 
@@ -262,6 +269,7 @@ export class SimulationEngine {
       grossBusinessRevenue,
       taxIncome,
       decisionEventIncome,
+      propertyTax,
       civicSalaries,
       maintenance,
       corruptionSkim,
@@ -270,6 +278,10 @@ export class SimulationEngine {
       expenses,
       net: income - expenses,
     };
+
+    if (propertyTax > 0) {
+      pushLog(s, `Property tax day — collected $${propertyTax.toFixed(0)} from standing businesses.`);
+    }
 
     if (corruptionSkim > 0) {
       s.election.scandalRiskAccrued += corruptionSkim;
@@ -282,12 +294,19 @@ export class SimulationEngine {
     }
   }
 
-  /** Resolves today's storm/flood/earthquake tick and returns the repair bill, if any. */
+  /** Resolves today's storm/flood/earthquake/major-disaster tick and returns the repair bill, if any. */
   private stepDisasters(): number {
     const s = this.state;
     const fireResponseFast = s.tiles.some((row) => row.some((t) => t.building === "fire_station_full"));
     const before = s.disasters.repairQueue.length;
-    const result = tickDisasters(s.tiles, s.time.season, fireResponseFast, this.rand, s.disasters);
+    const result = tickDisasters(
+      s.tiles,
+      s.time.season,
+      fireResponseFast,
+      s.time.totalDays,
+      this.rand,
+      s.disasters,
+    );
     const newlyDamaged = Math.max(0, s.disasters.repairQueue.length - before);
     for (const msg of result.messages) {
       pushLog(s, msg.text);

@@ -22,11 +22,12 @@ export interface BudgetSnapshot {
   grossBusinessRevenue: number; // before tax
   taxIncome: number; // treasury's cut of grossBusinessRevenue
   decisionEventIncome: number; // flat revenue-share from approved proposals, untaxed
+  propertyTax: number; // flat annual per-building tax, only nonzero on the collection day
   civicSalaries: number;
   maintenance: number;
   corruptionSkim: number;
   disasterRepairs: number;
-  income: number; // taxIncome + decisionEventIncome
+  income: number; // taxIncome + decisionEventIncome + propertyTax
   expenses: number; // civicSalaries + maintenance + corruptionSkim + disasterRepairs
   net: number; // income - expenses
 }
@@ -36,6 +37,7 @@ export function createEmptyBudgetSnapshot(): BudgetSnapshot {
     grossBusinessRevenue: 0,
     taxIncome: 0,
     decisionEventIncome: 0,
+    propertyTax: 0,
     civicSalaries: 0,
     maintenance: 0,
     corruptionSkim: 0,
@@ -99,7 +101,7 @@ export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e
     approval: 55,
     pollution: 0,
     election: createInitialElectionState(() => rng.next()),
-    disasters: createInitialDisasterState(),
+    disasters: createInitialDisasterState(() => rng.next()),
     immigration: createInitialImmigrationState(() => rng.next()),
     decisionEvents: createInitialDecisionEventsState(),
     countyFair: { lastHeldYear: -1 },

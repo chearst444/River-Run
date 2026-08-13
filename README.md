@@ -31,7 +31,9 @@ loop:
   a campaigning mechanic, visible corruption (siphoning, scandal risk) when a Grafter
   wins
 - **Disasters** — telegraphed storms → river flooding, rare unwarned earthquakes,
-  fire-station-tier-dependent repair speed
+  fire-station-tier-dependent repair speed, and — rarer still, on its own irregular
+  multi-month schedule — a major fire or flood that destroys several buildings outright
+  rather than just damaging them
 - **Flavor events** — county fair, volunteer→full fire station upgrade, covered bridge
 - **Major decision events** — data center and factory proposals, approve/reject with
   lasting jobs/revenue vs. happiness/pollution trade-offs
@@ -132,6 +134,27 @@ flags balancing as a later pass once the systems are all in place, which they no
   background after processing to catch whichever failure mode applies, and
   the simpler no-connectivity approach is the default; the border-flood-fill
   version is used only where a highlight-on-subject problem actually shows up.
+- **Annual property tax** — a new, second tax on top of the existing daily
+  activity-based business tax (`economy.ts`'s `computeGrossBusinessRevenue`):
+  once a year (the day the calendar rolls to month 1, day 1), every standing
+  commercial-category shop (bakery, butcher, tailor, farmers market) pays a
+  flat $100 into the treasury regardless of how business was that day —
+  a tax on *existing*, not on the day's activity. Per-building amounts are
+  independently tunable (`economy.ts`'s `PROPERTY_TAX_PER_BUILDING`) rather
+  than one global constant. Shows as its own line in the HUD's budget
+  readout, only on the day it's collected.
+- **Major disasters — fire and flood that destroy buildings, not just damage
+  them** — the existing storm-flooding/earthquake system only ever queues a
+  timed repair; this is a rarer, harsher tier on top of it. On an irregular
+  schedule (re-randomized every time one fires, roughly every 5–24 months,
+  never a fixed interval) a fire or flood hits, unwarned, and destroys 2–5
+  standing buildings outright — no repair queue, the player has to rebuild
+  from scratch. Flood only hits riverside buildings (falls back to fire if
+  none are standing); fire can hit anywhere except a covered bridge, since
+  losing a river crossing mid-game breaks road connectivity in a way that
+  reads as a bug rather than a consequence. A real `fire_station_full` in
+  town knocks one building off the loss count on a fire (floor of 1) — the
+  same tier that already speeds up ordinary disaster repairs.
 
 ## Tech Stack
 

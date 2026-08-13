@@ -7,7 +7,7 @@
  * `stepEconomy` for how these combine into the daily budget snapshot.
  */
 
-import type { Tile } from "../config/grid";
+import type { BuildingId, Tile } from "../config/grid";
 import { BUILDINGS } from "./buildings";
 import type { Season } from "./time";
 
@@ -86,4 +86,32 @@ export function computeMaintenance(tiles: Tile[][]): number {
     }
   }
   return monthly / 30;
+}
+
+/**
+ * A flat, once-a-year property tax per standing commercial-category
+ * building — separate from (and in addition to) the daily
+ * activity-based business tax above. That tax is on *revenue*; this one
+ * is just on *existing* — a shop pays it whether business was good or
+ * bad that year. Defaults to $100/building; override an entry here to
+ * vary the amount by building type.
+ */
+export const PROPERTY_TAX_PER_BUILDING: Partial<Record<BuildingId, number>> = {
+  bakery: 100,
+  butcher: 100,
+  tailor: 100,
+  farmers_market: 100,
+};
+
+/** Collected once a year (see engine.ts's stepEconomy) — a damaged building doesn't pay. */
+export function computeAnnualPropertyTax(tiles: Tile[][]): number {
+  let total = 0;
+  for (const row of tiles) {
+    for (const tile of row) {
+      if (tile.building && !tile.damaged) {
+        total += PROPERTY_TAX_PER_BUILDING[tile.building] ?? 0;
+      }
+    }
+  }
+  return total;
 }
