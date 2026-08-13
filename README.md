@@ -195,6 +195,18 @@ flags balancing as a later pass once the systems are all in place, which they no
   network (`network.ts`'s `spreadUtility`, from any water tower reachable by
   road) exactly like every other zone type — no separate terrain-proximity
   rule on top of it.
+- **Tool buttons now render above the tab row, not below it** — `ui/Toolbar.ts`
+  stacks the toolbar bottom-up: tab row (Zone/Utilities/Civic/Farm/Shops/
+  Industry) then, below that, the actual tool/building buttons for whichever
+  tab is active. That put every tab's buttons right at the bottom edge of the
+  screen — easy to clip under a phone's safe area/gesture bar and hard to
+  land a tap on — for every tab except Farm, whose crop-picker row happened
+  to render *above* the tabs already. Reordered so the tool/building row
+  renders above the tabs for every tab, matching Farm's crop row; the tab
+  row (short, five or six pill buttons) is now the bottom-most strip
+  instead. What looked like the Zone tab "not doing anything" when tapped
+  was this — its Road/Residential/Commercial/Industrial/Remove buttons were
+  rendering, just barely reachable at the very bottom edge.
 
 ## Tech Stack
 

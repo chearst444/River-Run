@@ -67,10 +67,16 @@ export class Toolbar {
     this.toolsRow = document.createElement("div");
     this.toolsRow.className = "tools-row";
 
+    // Tool/building buttons render above the tab row (same as the crop
+    // row already did) — anything below the tabs sits right at the
+    // bottom edge of the screen, where it's easy to clip under the safe
+    // area or a phone's gesture bar and hard to land a tap on. Putting
+    // the actual tappable tools higher up, with the short tab-selector
+    // row as the bottom-most strip, fixes both.
     this.root.appendChild(this.cropRowLabel);
     this.root.appendChild(this.cropRow);
-    this.root.appendChild(this.tabsRow);
     this.root.appendChild(this.toolsRow);
+    this.root.appendChild(this.tabsRow);
     container.appendChild(this.root);
 
     this.toast = document.createElement("div");
