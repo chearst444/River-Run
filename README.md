@@ -169,19 +169,25 @@ flags balancing as a later pass once the systems are all in place, which they no
   now-removed id (or any other garbage string) fell through to the zone-
   placement branch and got silently written into `tile.zone` instead of
   being rejected — it's now a clean "Unknown tool" refusal.
-- **No more flat zone-color fill** — every zoned tile (built or empty) used to
-  get a permanent colored rectangle underneath it (`ZONE_COLORS`/`CROP_COLORS`
-  in `render/palette.ts`) so you could tell a purple civic tile from a green
-  residential one at a glance. That's gone now — tiles render with nothing
-  behind their sprite but the terrain photo itself, so buildings and crops sit
-  directly on the map art instead of a colored patch. Identifying what's on a
-  tile is now an on-demand hover interaction instead of a permanent overlay:
-  mousing over any zoned/planted/built tile draws a colored outline (glowing
-  in the building's category color, via the existing `CATEGORY_COLOR_NUM`) and
-  a small floating tooltip naming it ("Clinic", "Wheat", "Residential", etc.),
-  both driven by a new `Events.TileHover` event and a new `ui/Tooltip.ts`
-  component. The toolbar's small category-color swatch dots (next to each
-  tool's label) are unrelated UI and were left as-is.
+- **No more flat zone-color fill behind icons** — a tile with a crop or
+  building sprite on it used to also get a permanent colored rectangle
+  underneath (`ZONE_COLORS` in `render/palette.ts`) painted right behind the
+  icon — that colored halo behind every icon was the actual complaint. Gone
+  now: a tile with an icon renders with nothing behind it but the terrain
+  photo. Identifying what's built there is an on-demand hover interaction
+  instead: mousing over any zoned/planted/built tile draws a colored outline
+  (glowing in the building's category color, via the existing
+  `CATEGORY_COLOR_NUM`) and a small floating tooltip naming it ("Clinic",
+  "Wheat", "Residential", etc.), both driven by a new `Events.TileHover`
+  event and a new `ui/Tooltip.ts` component. A bare zoned tile with no icon
+  yet — a road, or a residential/commercial/industrial lot before anything's
+  built on it, which is most of a zoned tile's life since those zones grow
+  density abstractly with no building sprite at all — still gets the flat
+  `ZONE_COLORS` fill, because there's nothing else to show and roads
+  especially need to stay visible or the road network is unreadable; it just
+  never sits behind an icon anymore. The toolbar's small category-color
+  swatch dots (next to each tool's label) are unrelated UI and were left
+  as-is.
 - **Farmland no longer needs to be next to water** — placing farmland used to
   require adjacency to river/lake terrain (`isWaterAdjacent`), the same rule
   docks still use. That's dropped for farmland: crops just need road access to

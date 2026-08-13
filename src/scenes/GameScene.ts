@@ -19,6 +19,7 @@ import {
   MAP_BACKDROP_TEXTURE_KEY,
   CROP_SPRITE_KEY,
   BUILDING_SPRITE_KEY,
+  ZONE_COLORS,
   HOVER_HIGHLIGHT_COLOR,
   DAMAGED_TINT,
   NO_UTILITY_DOT,
@@ -141,22 +142,30 @@ export class GameScene extends Phaser.Scene {
     const g = this.zoneLayer;
     g.clear();
     this.buildingLayer.removeAll(true);
+    const pad = TILE_SIZE * 0.06;
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         const tile = this.tiles[y][x];
         if (tile.zone === "none") continue;
 
-        // No more flat zone-color fill, for a planted crop/building or a
-        // bare zoned lot alike — it read as a colored halo behind every
-        // icon, and as clutter over the map backdrop even where nothing's
-        // built yet. Zoning still gates what's legal to build where; it's
-        // just not painted on the map anymore. Hover a tile (see
-        // updateHover) to see what it's zoned/planted/built as instead of
-        // it being permanently colored in.
+        // The flat zone-color fill no longer paints behind a crop/building
+        // icon — that was a colored halo behind every icon, which is what
+        // the "weird backgrounds" complaint was actually about. But a bare
+        // zoned lot (a road, or a residential/commercial/industrial tile
+        // before anything's built on it — which is most of a zoned tile's
+        // life, since those zones grow density abstractly with no building
+        // sprite) has nothing else to show at all, and roads especially
+        // need to stay visible or the road network is unreadable. So the
+        // fill still renders, just only when there's no icon to sit behind.
         const cropSpriteKey =
           tile.zone === "farmland" && tile.cropType ? CROP_SPRITE_KEY[tile.cropType] : undefined;
-        if (cropSpriteKey) this.drawSpriteIcon(x, y, cropSpriteKey);
+        if (cropSpriteKey) {
+          this.drawSpriteIcon(x, y, cropSpriteKey);
+        } else if (!tile.building) {
+          g.fillStyle(ZONE_COLORS[tile.zone], 0.9);
+          g.fillRect(x * TILE_SIZE + pad, y * TILE_SIZE + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
+        }
 
         if (tile.damaged) {
           g.fillStyle(DAMAGED_TINT, 0.45);

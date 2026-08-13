@@ -1,4 +1,4 @@
-import type { BuildingId, CropId } from "../config/grid";
+import type { BuildingId, CropId, ZoneType } from "../config/grid";
 import type { BuildingCategory } from "../sim/buildings";
 
 /** The extracted bridge photo — a discrete sprite (see drawBuildingBadge's covered_bridge case), not a repeating fill. */
@@ -15,12 +15,10 @@ export const BRIDGE_TEXTURE_KEY = "tex-river-bridge";
 export const MAP_BACKDROP_TEXTURE_KEY = "tex-map-backdrop";
 
 /**
- * Real photo-cutout icons for crops, filled in incrementally as the user
- * generates more art — a `Partial` map on purpose, so a crop with no entry
- * yet just falls back to its flat CROP_COLORS fill (see
- * GameScene.redrawDynamicLayers). Same idea as BRIDGE_TEXTURE_KEY was for
- * the covered bridge, generalized so each new asset is a one-line add
- * here instead of new bespoke rendering code.
+ * Real photo-cutout icons for crops — every crop has an entry now. Same
+ * idea as BRIDGE_TEXTURE_KEY was for the covered bridge, generalized so
+ * each new asset was a one-line add here instead of new bespoke rendering
+ * code.
  */
 export const CROP_SPRITE_KEY: Partial<Record<CropId, string>> = {
   tomatoes: "sprite-crop-tomatoes",
@@ -102,6 +100,26 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-building-historic_mill": "/sprites/building_historic_mill.png",
   "sprite-building-blacksmith": "/sprites/building_blacksmith.png",
   "sprite-building-clinic": "/sprites/building_clinic.png",
+};
+
+/**
+ * Fallback fill for a zoned tile that has nothing else to show — a bare
+ * road, or a residential/commercial/industrial lot with no building on it
+ * yet (those zones grow density abstractly; most of a zoned tile's life
+ * has no building sprite at all). GameScene.redrawDynamicLayers only
+ * paints this when a tile has no crop/building icon, so it never sits
+ * behind one — that was the actual complaint (a colored rectangle behind
+ * every building/crop icon), not zoned land being visible at all, and
+ * roads in particular need to stay visible or the road network is
+ * impossible to read.
+ */
+export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
+  road: 0x4a4a4a,
+  residential: 0x5b8fd6,
+  commercial: 0xd6a75b,
+  industrial: 0xb05b5b,
+  farmland: 0xd9c25b,
+  civic: 0x9b5bd6,
 };
 
 export const INVALID_PLACEMENT_TINT = 0xff4444;
