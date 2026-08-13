@@ -39,6 +39,17 @@ export function loadGame(): GameState | null {
     if (parsed.tiles?.length !== MAP_HEIGHT || parsed.tiles?.[0]?.length !== MAP_WIDTH) {
       return null;
     }
+    // fire_station_volunteer was removed as a building type — a save from
+    // before that still has one standing gets a free upgrade to the full
+    // station rather than the tile silently going blank or crashing
+    // anything that looks the building up in the current catalog.
+    for (const row of parsed.tiles) {
+      for (const tile of row) {
+        if ((tile.building as string) === "fire_station_volunteer") {
+          tile.building = "fire_station_full";
+        }
+      }
+    }
     return {
       ...parsed,
       decisionEvents: {

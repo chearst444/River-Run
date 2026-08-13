@@ -43,6 +43,20 @@ const MAX_DAYS_PER_UPDATE = 6; // guards against a huge catch-up burst after the
 const BULLDOZE_REFUND_FRACTION = 0.5;
 const UNDO_STACK_LIMIT = 20;
 
+// placeTool falls through to "treat it as a zone" once it's ruled out
+// "bulldoze" and every known BuildingId — without this check, a stale or
+// simply mistyped tool string (an old/removed building id, a UI bug) would
+// silently be written into tile.zone as garbage instead of being rejected.
+const VALID_ZONES = new Set<ZoneType>([
+  "none",
+  "road",
+  "residential",
+  "commercial",
+  "industrial",
+  "farmland",
+  "civic",
+]);
+
 // Food security below this fraction of need counts as "going hungry" for
 // both the direct population loss and the famine-collapse clock.
 const STARVATION_THRESHOLD = 0.5;
@@ -428,7 +442,6 @@ export class SimulationEngine {
       if (!legality.allowed) return { ok: false, reason: legality.reason };
       if (s.treasury < def.cost) return { ok: false, reason: `Not enough funds (needs $${def.cost}).` };
       s.treasury -= def.cost;
-      // Fire station upgrade replaces the volunteer building in place.
       tile.building = id;
       if (tile.zone === "none") tile.zone = def.zone;
       this.pushUndo(x, y, before, s.treasury + def.cost);
@@ -437,6 +450,9 @@ export class SimulationEngine {
       return { ok: true };
     }
 
+    if (!VALID_ZONES.has(tool as ZoneType)) {
+      return { ok: false, reason: "Unknown tool." };
+    }
     const zone = tool as ZoneType;
     const legality = canPlaceZone(s.tiles, tile, zone);
     if (!legality.allowed) return { ok: false, reason: legality.reason };

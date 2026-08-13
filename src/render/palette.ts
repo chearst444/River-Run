@@ -57,9 +57,6 @@ export const BUILDING_SPRITE_KEY: Partial<Record<BuildingId, string>> = {
   town_hall: "sprite-building-town_hall",
   police_station: "sprite-building-police_station",
   fire_station_full: "sprite-building-fire_station_full",
-  // fire_station_volunteer stays on its badge for now — the modest
-  // "before the upgrade" look actually reads well against the real
-  // fire_station_full render once that upgrade fires.
   power_plant: "sprite-building-power_plant",
   water_tower: "sprite-building-water_tower",
   barn: "sprite-building-barn",
@@ -169,7 +166,6 @@ export const BUILDING_ABBR: Record<BuildingId, string> = {
   church: "CHR",
   town_hall: "TH",
   police_station: "PD",
-  fire_station_volunteer: "VFD",
   fire_station_full: "FD",
   covered_bridge: "BRG",
   dock: "DCK",

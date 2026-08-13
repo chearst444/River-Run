@@ -30,11 +30,11 @@ loop:
   (player + a fixture rival + a rotating rival), Grafter/Reformer/Wildcard archetypes,
   a campaigning mechanic, visible corruption (siphoning, scandal risk) when a Grafter
   wins
-- **Disasters** — telegraphed storms → river flooding, rare unwarned earthquakes,
-  fire-station-tier-dependent repair speed, and — rarer still, on its own irregular
+- **Disasters** — telegraphed storms → river flooding, rare unwarned earthquakes, faster
+  repair speed with a Fire Station in town, and — rarer still, on its own irregular
   multi-month schedule — a major fire or flood that destroys several buildings outright
   rather than just damaging them
-- **Flavor events** — county fair, volunteer→full fire station upgrade, covered bridge
+- **Flavor events** — county fair, covered bridge
 - **Major decision events** — data center and factory proposals, approve/reject with
   lasting jobs/revenue vs. happiness/pollution trade-offs
 - **Polish** — save/load via `localStorage`, mobile touch tuning, an undo button (↩ in the
@@ -155,6 +155,18 @@ flags balancing as a later pass once the systems are all in place, which they no
   reads as a bug rather than a consequence. A real `fire_station_full` in
   town knocks one building off the loss count on a fire (floor of 1) — the
   same tier that already speeds up ordinary disaster repairs.
+- **Dropped the volunteer fire station** — rather than commission art for a
+  building that only ever existed as an early, cheaper stepping-stone to the
+  real one, `fire_station_volunteer` is gone; `fire_station_full` ($400) is
+  now the only fire station, buildable straight away like every other civic
+  building. A save with a volunteer station still standing from before this
+  change gets it upgraded to the full station for free on load, rather than
+  the tile going blank or the game choking on an id that no longer exists.
+  Fixed a latent bug this surfaced along the way: `placeTool` had no check
+  that an unrecognized tool name wasn't secretly a zone type, so passing the
+  now-removed id (or any other garbage string) fell through to the zone-
+  placement branch and got silently written into `tile.zone` instead of
+  being rejected — it's now a clean "Unknown tool" refusal.
 
 ## Tech Stack
 

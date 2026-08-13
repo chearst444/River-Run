@@ -119,17 +119,6 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requiresPower: true,
     description: "Coverage boosts happiness and approval.",
   },
-  fire_station_volunteer: {
-    id: "fire_station_volunteer",
-    name: "Volunteer Fire Dept.",
-    category: "civic",
-    zone: "civic",
-    cost: 150,
-    upkeepPerMonth: 1,
-    jobs: 2,
-    serviceRadius: 5,
-    description: "Cheap, early fire coverage — slower disaster response.",
-  },
   fire_station_full: {
     id: "fire_station_full",
     name: "Fire Station",
@@ -294,10 +283,7 @@ export function canPlaceBuilding(tiles: Tile[][], tile: Tile, id: BuildingId): P
     return { allowed: false, reason: "Too steep to build here." };
   }
   if (tile.building) {
-    const isFireUpgrade = id === "fire_station_full" && tile.building === "fire_station_volunteer";
-    if (!isFireUpgrade) {
-      return { allowed: false, reason: "Something is already built here." };
-    }
+    return { allowed: false, reason: "Something is already built here." };
   }
   if (def.canPlace) return def.canPlace(tiles, tile);
   return { allowed: true };

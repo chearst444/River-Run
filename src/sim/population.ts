@@ -18,10 +18,7 @@ const SERVICE_BUILDING_SETS: { ids: Set<string>; radius: number }[] = [
   { ids: new Set(["clinic"]), radius: BUILDINGS.clinic.serviceRadius ?? 7 },
   { ids: new Set(["church"]), radius: BUILDINGS.church.serviceRadius ?? 8 },
   { ids: new Set(["police_station"]), radius: BUILDINGS.police_station.serviceRadius ?? 7 },
-  {
-    ids: new Set(["fire_station_volunteer", "fire_station_full"]),
-    radius: 8,
-  },
+  { ids: new Set(["fire_station_full"]), radius: BUILDINGS.fire_station_full.serviceRadius ?? 9 },
 ];
 
 export interface HousingJobs {

@@ -44,7 +44,6 @@ export type BuildingId =
   | "church"
   | "town_hall"
   | "police_station"
-  | "fire_station_volunteer"
   | "fire_station_full"
   | "covered_bridge"
   | "dock"
