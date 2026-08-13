@@ -18,8 +18,9 @@ loop:
 - **Population** — housing capacity, jobs, employment, a happiness formula (services,
   employment, food, tax, pollution, disasters, corruption), growth/emigration, density
   upgrades over time
-- **Agriculture, fishing & hunting** — row crops, orchards, livestock, river/lake
-  adjacency rule, docks, autumn-only deer hunting, barns/silos storage with spoilage
+- **Agriculture, fishing & hunting** — row crops, orchards, livestock, docks (which
+  do still need to touch river/lake terrain — that's the one placement rule tied to
+  water), autumn-only deer hunting, barns/silos storage with spoilage
 - **Seasons** — spring/summer/fall/winter cycle driving crop yields, flood timing
   (spring snowmelt, summer/fall storms), and the hunting season
 - **Budget/tax** — a player-adjustable tax slider, upkeep, treasury
@@ -93,8 +94,9 @@ flags balancing as a later pass once the systems are all in place, which they no
   `Partial` maps from crop/building id to a sprite texture key — anything listed
   renders as that photo-cutout (`public/sprites/`, background-removed and
   cropped to content), scaled uniformly to fit its tile; anything not yet
-  listed keeps rendering exactly as before (a flat crop-color fill, or a
-  category badge + monogram). Every crop now has real art (wheat, corn,
+  listed keeps rendering exactly as before (a category badge + monogram —
+  see "No more flat zone-color fill" below for how the old colored
+  backgrounds behind these icons were removed). Every crop now has real art (wheat, corn,
   potatoes, tomatoes, apples, cows, chickens, goats, sheep). Buildings: the
   covered bridge, school, church, town_hall, police_station,
   fire_station_full, power_plant, water_tower, barn, silo, bakery, butcher,
@@ -167,6 +169,26 @@ flags balancing as a later pass once the systems are all in place, which they no
   now-removed id (or any other garbage string) fell through to the zone-
   placement branch and got silently written into `tile.zone` instead of
   being rejected — it's now a clean "Unknown tool" refusal.
+- **No more flat zone-color fill** — every zoned tile (built or empty) used to
+  get a permanent colored rectangle underneath it (`ZONE_COLORS`/`CROP_COLORS`
+  in `render/palette.ts`) so you could tell a purple civic tile from a green
+  residential one at a glance. That's gone now — tiles render with nothing
+  behind their sprite but the terrain photo itself, so buildings and crops sit
+  directly on the map art instead of a colored patch. Identifying what's on a
+  tile is now an on-demand hover interaction instead of a permanent overlay:
+  mousing over any zoned/planted/built tile draws a colored outline (glowing
+  in the building's category color, via the existing `CATEGORY_COLOR_NUM`) and
+  a small floating tooltip naming it ("Clinic", "Wheat", "Residential", etc.),
+  both driven by a new `Events.TileHover` event and a new `ui/Tooltip.ts`
+  component. The toolbar's small category-color swatch dots (next to each
+  tool's label) are unrelated UI and were left as-is.
+- **Farmland no longer needs to be next to water** — placing farmland used to
+  require adjacency to river/lake terrain (`isWaterAdjacent`), the same rule
+  docks still use. That's dropped for farmland: crops just need road access to
+  produce, same as before, and get irrigated via the existing water-utility
+  network (`network.ts`'s `spreadUtility`, from any water tower reachable by
+  road) exactly like every other zone type — no separate terrain-proximity
+  rule on top of it.
 
 ## Tech Stack
 
@@ -188,7 +210,8 @@ src/
   render/     — rendering-only concerns (color palette, category colors, building
                 icon monograms)
   scenes/     — the Phaser GameScene (camera, input, tile/building rendering)
-  ui/         — DOM-based UI (categorized toolbar, HUD, modal controller)
+  ui/         — DOM-based UI (categorized toolbar, HUD, modal controller,
+                a hover tooltip for identifying tiles under the cursor)
   events.ts   — shared event bus between the sim engine and UI
   main.ts     — app entry point
 docs/

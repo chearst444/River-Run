@@ -9,23 +9,33 @@ import {
   type BuildingId,
   type CropId,
   type Tile,
+  type ZoneType,
 } from "../config/grid";
 import type { SimulationEngine } from "../sim/engine";
 import { BUILDINGS } from "../sim/buildings";
+import { CROPS } from "../sim/agriculture";
 import {
   TEXTURE_FILES,
   MAP_BACKDROP_TEXTURE_KEY,
   CROP_SPRITE_KEY,
   BUILDING_SPRITE_KEY,
-  ZONE_COLORS,
-  CROP_COLORS,
   HOVER_HIGHLIGHT_COLOR,
   DAMAGED_TINT,
   NO_UTILITY_DOT,
   BUILDING_ABBR,
   CATEGORY_COLOR_NUM,
 } from "../render/palette";
-import { eventBus, Events, type ToolSelection } from "../events";
+import { eventBus, Events, type ToolSelection, type TileInfoPayload } from "../events";
+
+/** Plain-English name for a zoned-but-nothing-built-there tile — the hover tooltip's fallback. */
+const ZONE_LABEL: Record<Exclude<ZoneType, "none">, string> = {
+  road: "Road",
+  residential: "Residential",
+  commercial: "Commercial",
+  industrial: "Industrial",
+  farmland: "Farmland",
+  civic: "Civic",
+};
 
 const TAP_MOVE_THRESHOLD = 10; // px — beyond this, a touch is a drag/pan, not a tap
 const DRAG_ZOOM_SENSITIVITY = 1;
@@ -131,29 +141,22 @@ export class GameScene extends Phaser.Scene {
     const g = this.zoneLayer;
     g.clear();
     this.buildingLayer.removeAll(true);
-    const pad = TILE_SIZE * 0.06;
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         const tile = this.tiles[y][x];
         if (tile.zone === "none") continue;
 
-        // A planted crop with real art (see palette.ts's CROP_SPRITE_KEY)
-        // renders as that photo instead of a flat color fill — anything
-        // not yet illustrated keeps the fill exactly as before.
+        // No more flat zone-color fill, for a planted crop/building or a
+        // bare zoned lot alike — it read as a colored halo behind every
+        // icon, and as clutter over the map backdrop even where nothing's
+        // built yet. Zoning still gates what's legal to build where; it's
+        // just not painted on the map anymore. Hover a tile (see
+        // updateHover) to see what it's zoned/planted/built as instead of
+        // it being permanently colored in.
         const cropSpriteKey =
           tile.zone === "farmland" && tile.cropType ? CROP_SPRITE_KEY[tile.cropType] : undefined;
-
-        if (cropSpriteKey) {
-          this.drawSpriteIcon(x, y, cropSpriteKey);
-        } else {
-          const color =
-            tile.zone === "farmland" && tile.cropType
-              ? CROP_COLORS[tile.cropType]
-              : ZONE_COLORS[tile.zone];
-          g.fillStyle(color, 0.9);
-          g.fillRect(x * TILE_SIZE + pad, y * TILE_SIZE + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
-        }
+        if (cropSpriteKey) this.drawSpriteIcon(x, y, cropSpriteKey);
 
         if (tile.damaged) {
           g.fillStyle(DAMAGED_TINT, 0.45);
@@ -239,7 +242,14 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      if (!this.activePointers.has(pointer.id)) return;
+      if (!this.activePointers.has(pointer.id)) {
+        // Not part of an active drag/pan — a plain mouse hover (a touch
+        // device won't normally fire pointermove without pointerdown
+        // first, so this is effectively desktop-only, same as "hover"
+        // itself only ever meant something on desktop).
+        if (!pointer.isDown) this.updateHover(pointer);
+        return;
+      }
       this.activePointers.set(pointer.id, new Phaser.Math.Vector2(pointer.x, pointer.y));
 
       if (this.isPinching && this.activePointers.size >= 2) {
@@ -326,14 +336,47 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(next);
   }
 
+  /**
+   * With the flat zone-color fill gone (see redrawDynamicLayers), hovering
+   * is now how a tile's zone/crop/building actually gets identified — a
+   * colored glow (the building's category color, same palette the toolbar
+   * uses) around the tile plus a name via Events.TileHover, which
+   * ui/Tooltip.ts renders as a small label that follows the cursor.
+   */
   private updateHover(pointer: Phaser.Input.Pointer) {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     const tx = Math.floor(world.x / TILE_SIZE);
     const ty = Math.floor(world.y / TILE_SIZE);
     this.hoverLayer.clear();
-    if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) return;
+    if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) {
+      eventBus.emit(Events.TileHover, null);
+      return;
+    }
+
+    const tile = this.tiles[ty][tx];
     this.hoverLayer.lineStyle(2, HOVER_HIGHLIGHT_COLOR, 0.9);
     this.hoverLayer.strokeRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+    const label = this.describeTile(tile);
+    if (!label) {
+      eventBus.emit(Events.TileHover, null);
+      return;
+    }
+
+    const glowColor = tile.building ? CATEGORY_COLOR_NUM[BUILDINGS[tile.building].category] : HOVER_HIGHLIGHT_COLOR;
+    this.hoverLayer.lineStyle(4, glowColor, 0.9);
+    this.hoverLayer.strokeRect(tx * TILE_SIZE + 2, ty * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+    const payload: TileInfoPayload = { label, screenX: pointer.x, screenY: pointer.y };
+    eventBus.emit(Events.TileHover, payload);
+  }
+
+  /** What to call a tile in the hover tooltip — the specific thing on it, or its bare zone if empty. */
+  private describeTile(tile: Tile): string | null {
+    if (tile.building) return BUILDINGS[tile.building].name;
+    if (tile.zone === "farmland" && tile.cropType) return CROPS[tile.cropType].label;
+    if (tile.zone !== "none") return ZONE_LABEL[tile.zone];
+    return null;
   }
 
   private handleTap(pointer: Phaser.Input.Pointer) {

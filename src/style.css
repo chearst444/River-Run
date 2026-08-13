@@ -134,6 +134,30 @@
   text-align: center;
 }
 
+/* ---------- Hover tooltip ---------- */
+
+.tile-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 14px));
+  background: rgba(10, 16, 11, 0.92);
+  color: var(--ink);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font: 600 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 35;
+}
+
+.tile-tooltip.visible {
+  opacity: 1;
+}
+
 .toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);

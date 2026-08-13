@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { BuildingId, CropId, ZoneType } from "./config/grid";
+import type { BuildingId, ZoneType } from "./config/grid";
 
 /**
  * Shared event bus between the DOM UI (toolbar, HUD, modals) and the
@@ -11,7 +11,7 @@ export const eventBus = new Phaser.Events.EventEmitter();
 export const Events = {
   ToolSelected: "tool-selected",
   PlacementRejected: "placement-rejected",
-  TileInfo: "tile-info",
+  TileHover: "tile-hover",
   StateChanged: "state-changed",
   ImmigrationOffered: "immigration-offered",
   ProposalOffered: "proposal-offered",
@@ -29,11 +29,14 @@ export interface ToolSelectedPayload {
   tool: ToolSelection;
 }
 
+/**
+ * What's under the cursor while hovering the map — just enough for a
+ * tooltip to name it (e.g. "Clinic", "Wheat", "Commercial"). `null` means
+ * nothing to show (hide the tooltip): off the map, or a bare tile with
+ * nothing built/planted/zoned there.
+ */
 export interface TileInfoPayload {
-  x: number;
-  y: number;
-  terrain: string;
-  zone: ZoneType;
-  building: BuildingId | null;
-  cropType: CropId | null;
+  label: string;
+  screenX: number;
+  screenY: number;
 }

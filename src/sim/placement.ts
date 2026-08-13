@@ -6,7 +6,6 @@
  */
 
 import type { Tile, ZoneType } from "../config/grid";
-import { isWaterAdjacent } from "./terrain";
 
 export interface PlacementResult {
   allowed: boolean;
@@ -15,7 +14,7 @@ export interface PlacementResult {
 
 const UNBUILDABLE_TERRAIN = new Set(["river", "lake"]);
 
-export function canPlaceZone(tiles: Tile[][], tile: Tile, zone: ZoneType): PlacementResult {
+export function canPlaceZone(_tiles: Tile[][], tile: Tile, zone: ZoneType): PlacementResult {
   if (zone === "none") return { allowed: true };
 
   if (UNBUILDABLE_TERRAIN.has(tile.terrain)) {
@@ -26,9 +25,10 @@ export function canPlaceZone(tiles: Tile[][], tile: Tile, zone: ZoneType): Place
     if (tile.terrain === "mountain") {
       return { allowed: false, reason: "Farmland can't be placed on mountain terrain." };
     }
-    if (!isWaterAdjacent(tiles, tile.x, tile.y)) {
-      return { allowed: false, reason: "Farmland must border the river or lake." };
-    }
+    // No more river/lake-adjacency requirement — a farm just needs water
+    // piped in like any other zone (see network.ts's spreadUtility), not
+    // to physically border the water. See agriculture.ts's yield
+    // calculation for where hasWater actually matters now.
     return { allowed: true };
   }
 

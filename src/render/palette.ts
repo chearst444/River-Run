@@ -1,4 +1,4 @@
-import type { BuildingId, CropId, ZoneType } from "../config/grid";
+import type { BuildingId, CropId } from "../config/grid";
 import type { BuildingCategory } from "../sim/buildings";
 
 /** The extracted bridge photo — a discrete sprite (see drawBuildingBadge's covered_bridge case), not a repeating fill. */
@@ -104,31 +104,10 @@ export const TEXTURE_FILES: Record<string, string> = {
   "sprite-building-clinic": "/sprites/building_clinic.png",
 };
 
-export const ZONE_COLORS: Record<Exclude<ZoneType, "none">, number> = {
-  road: 0x4a4a4a,
-  residential: 0x5b8fd6,
-  commercial: 0xd6a75b,
-  industrial: 0xb05b5b,
-  farmland: 0xd9c25b,
-  civic: 0x9b5bd6,
-};
-
 export const INVALID_PLACEMENT_TINT = 0xff4444;
 export const HOVER_HIGHLIGHT_COLOR = 0xffffff;
 export const DAMAGED_TINT = 0xff2222;
 export const NO_UTILITY_DOT = 0xff8800;
-
-export const CROP_COLORS: Record<CropId, number> = {
-  wheat: 0xd9c25b,
-  corn: 0xe0b23f,
-  potatoes: 0xa9895b,
-  tomatoes: 0xc4522f,
-  apples: 0x7a9a3c,
-  cows: 0xa9765b,
-  chickens: 0xd8c9a3,
-  goats: 0xb8ab8f,
-  sheep: 0xe4ded0,
-};
 
 /**
  * Category colors — the single source of truth for both the toolbar
