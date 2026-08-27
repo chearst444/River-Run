@@ -8,6 +8,19 @@ import { createInitialDisasterState, type DisasterState } from "./disasters";
 import { createInitialImmigrationState, type ImmigrationState } from "./immigration";
 import { createInitialDecisionEventsState, type DecisionEventsState } from "./decisionEvents";
 import { Rng } from "./rng";
+import type { HappinessInputs } from "./population";
+
+export function createEmptyHappinessInputs(): HappinessInputs {
+  return {
+    serviceCoverage: 0,
+    employmentRate: 1,
+    foodSecurity: 1,
+    taxRate: STARTING_TAX_RATE,
+    pollution: 0,
+    disasterPenalty: 0,
+    corruptionPenalty: 0,
+  };
+}
 
 export const STARTING_TREASURY = 2000;
 export const STARTING_TAX_RATE = 0.12;
@@ -65,6 +78,8 @@ export interface GameState {
   happiness: number;
   approval: number;
   pollution: number;
+  /** The raw factors behind today's happiness score, for the in-game hints panel. */
+  happinessInputs: HappinessInputs;
   election: ElectionState;
   disasters: DisasterState;
   immigration: ImmigrationState;
@@ -100,6 +115,7 @@ export function createInitialGameState(tiles: Tile[][], seed = Date.now() ^ 0x9e
     happiness: 60,
     approval: 55,
     pollution: 0,
+    happinessInputs: createEmptyHappinessInputs(),
     election: createInitialElectionState(() => rng.next()),
     disasters: createInitialDisasterState(() => rng.next()),
     immigration: createInitialImmigrationState(() => rng.next()),

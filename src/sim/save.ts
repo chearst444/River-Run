@@ -1,6 +1,6 @@
 /** Save/load the whole GameState to/from browser localStorage. */
 
-import type { GameState } from "./state";
+import { createEmptyHappinessInputs, type GameState } from "./state";
 import type { ProposalId } from "./decisionEvents";
 import { MAP_WIDTH, MAP_HEIGHT } from "../config/grid";
 
@@ -52,6 +52,8 @@ export function loadGame(): GameState | null {
     }
     return {
       ...parsed,
+      // A save from before the hints panel existed won't have this field.
+      happinessInputs: parsed.happinessInputs ?? createEmptyHappinessInputs(),
       decisionEvents: {
         ...parsed.decisionEvents,
         offered: new Set(parsed.decisionEvents.offered as ProposalId[]),

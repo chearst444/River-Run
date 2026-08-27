@@ -3,6 +3,7 @@ import type { SimulationEngine } from "../sim/engine";
 import { formatDate } from "../sim/time";
 import { saveGame, loadGame } from "../sim/save";
 import { MAX_TAX_RATE } from "../sim/economy";
+import { getHappinessHints } from "../sim/population";
 import type { GameSpeed } from "../sim/time";
 
 /**
@@ -93,6 +94,22 @@ export class HUD {
     `;
   }
 
+  private renderHappinessHints(): string {
+    const hints = getHappinessHints(this.engine.state.happinessInputs).slice(0, 3);
+
+    const lines =
+      hints.length > 0
+        ? hints.map((h) => `<div class="hud-hint-line">${escapeHtml(h.text)}</div>`).join("")
+        : `<div class="hud-hint-line good">Citizens are content — no major complaints right now.</div>`;
+
+    return `
+      <div class="hud-row">
+        <span class="hud-panel-label">😊 Happiness (${Math.round(this.engine.state.happiness)}%) — how to improve it</span>
+      </div>
+      <div class="hud-hints">${lines}</div>
+    `;
+  }
+
   private render() {
     const s = this.engine.state;
     const pop = Math.round(s.population);
@@ -148,6 +165,7 @@ export class HUD {
       <div class="hud-row">
         <span class="hud-panel-label">Jobs ${Math.round(s.jobsAvailable)} · Housing ${Math.round(s.housingCapacity)}</span>
       </div>
+      ${this.renderHappinessHints()}
       ${this.renderBudget()}
       <div class="hud-row hud-actions">
         <button class="hud-action-btn" data-action="campaign">📢 Campaign ($150)</button>

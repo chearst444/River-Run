@@ -163,7 +163,7 @@ export class GameScene extends Phaser.Scene {
         if (cropSpriteKey) {
           this.drawSpriteIcon(x, y, cropSpriteKey);
         } else if (!tile.building) {
-          g.fillStyle(ZONE_COLORS[tile.zone], 0.9);
+          g.fillStyle(ZONE_COLORS[tile.zone], 0.2);
           g.fillRect(x * TILE_SIZE + pad, y * TILE_SIZE + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
         }
 

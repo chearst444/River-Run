@@ -137,7 +137,7 @@ export class SimulationEngine {
     const corruptionPenalty =
       s.election.mayor !== "player" && s.election.corruptionSiphonPerDay > 0 ? 8 : 0;
 
-    let happiness = computeHappiness({
+    s.happinessInputs = {
       serviceCoverage,
       employmentRate: s.employmentRate,
       foodSecurity,
@@ -145,7 +145,8 @@ export class SimulationEngine {
       pollution: s.pollution,
       disasterPenalty: s.disasters.disasterPenalty,
       corruptionPenalty,
-    });
+    };
+    let happiness = computeHappiness(s.happinessInputs);
     happiness += production.happinessBonus + s.election.termHappinessModifier;
     if (s.treasury < 0) happiness -= 5;
     s.happiness = Math.max(0, Math.min(100, happiness));

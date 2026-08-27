@@ -91,6 +91,78 @@ export function computeHappiness(inputs: HappinessInputs): number {
   return Math.max(0, Math.min(100, happiness));
 }
 
+export interface HappinessHint {
+  text: string;
+  /** Roughly how many happiness points this factor is currently costing — used to rank hints. */
+  penalty: number;
+}
+
+/**
+ * Turns the same inputs computeHappiness() uses into plain-English, ranked
+ * advice — the biggest happiness drags first. Mirrors computeHappiness's
+ * weights so a hint's rank actually matches its real impact on the score.
+ */
+export function getHappinessHints(inputs: HappinessInputs): HappinessHint[] {
+  const hints: HappinessHint[] = [];
+
+  const servicePenalty = (1 - inputs.serviceCoverage) * 35;
+  if (servicePenalty > 3) {
+    hints.push({
+      penalty: servicePenalty,
+      text: "Build more schools, clinics, churches, or police/fire coverage near where people live — service coverage is low.",
+    });
+  }
+
+  const jobsPenalty = (1 - inputs.employmentRate) * 25;
+  if (jobsPenalty > 3) {
+    hints.push({
+      penalty: jobsPenalty,
+      text: "Not enough jobs for your population — zone more commercial or industrial land.",
+    });
+  }
+
+  const foodPenalty = (1 - inputs.foodSecurity) * 25;
+  if (foodPenalty > 3) {
+    hints.push({
+      penalty: foodPenalty,
+      text: "Food production isn't keeping up with demand — plant more farmland.",
+    });
+  }
+
+  const pollutionPenalty = inputs.pollution * 10;
+  if (pollutionPenalty > 2) {
+    hints.push({
+      penalty: pollutionPenalty,
+      text: "Pollution is dragging morale down — space industry out or add parks to offset it.",
+    });
+  }
+
+  const taxPenalty = inputs.taxRate * 60;
+  if (taxPenalty > 6) {
+    hints.push({
+      penalty: taxPenalty,
+      text: `Taxes are high (${Math.round(inputs.taxRate * 100)}%) — lowering the rate would ease the strain on residents.`,
+    });
+  }
+
+  if (inputs.disasterPenalty > 2) {
+    hints.push({
+      penalty: inputs.disasterPenalty,
+      text: "Recent disaster damage is still weighing on the town — repair damaged buildings to speed the recovery.",
+    });
+  }
+
+  if (inputs.corruptionPenalty > 0) {
+    hints.push({
+      penalty: inputs.corruptionPenalty,
+      text: "A corrupt mayor is skimming the budget and souring the mood — win back the office at the next election.",
+    });
+  }
+
+  hints.sort((a, b) => b.penalty - a.penalty);
+  return hints;
+}
+
 /**
  * Moves population toward a target derived from housing/jobs, direction and
  * speed modulated by happiness (unhappy towns bleed residents even below
