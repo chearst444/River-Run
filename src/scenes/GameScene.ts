@@ -67,8 +67,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    // TEXTURE_FILES paths are root-relative ("/sprites/..."); prefix with
+    // Vite's BASE_URL so they still resolve once the build is deployed
+    // under a subpath (e.g. GitHub Pages project sites).
     for (const [key, url] of Object.entries(TEXTURE_FILES)) {
-      this.load.image(key, url);
+      this.load.image(key, import.meta.env.BASE_URL + url.replace(/^\//, ""));
     }
   }
 
